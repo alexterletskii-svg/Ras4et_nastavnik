@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .hover-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .hover-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important;
+    }
+    .icon-wrapper {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        margin-bottom: 1.25rem;
+    }
+</style>
+
+<div class="row justify-content-center mt-2">
+    <div class="col-lg-10">
+
+        <div class="p-4 p-md-5 mb-4 bg-white rounded-3 shadow-sm border border-light">
+            <div class="container-fluid py-2">
+                <h1 class="display-6 fw-bold text-dark mb-3">Система управления наставничеством</h1>
+                <p class="col-md-10 fs-5 text-muted mb-0">
+                   Микросервис для работы с базой наставников и планирования потребности в персонале. Выберите необходимый модуль для начала работы.
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+
+            <div class="col-md-6">
+                <div class="card h-100 shadow-sm border-0 hover-card">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="icon-wrapper bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-table fs-4"></i>
+                        </div>
+                        <h4 class="card-title fw-bold text-dark">Информация о наставниках</h4>
+                        <p class="card-text text-muted mb-4">
+                            Сводная аналитика по площадкам, переделам и цехам. Загрузка актуальных данных из кадровых отчетов (формат Excel) и мониторинг текущего состояния штата.
+                        </p>
+                        <div class="mt-auto">
+                            <a href="/mentors" class="btn btn-primary px-4">Перейти к базе данных</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100 shadow-sm border-0 hover-card">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="icon-wrapper bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-calculator fs-4"></i>
+                        </div>
+                        <h4 class="card-title fw-bold text-dark">Калькулятор потребности</h4>
+                        <p class="card-text text-muted mb-4">
+                            Математическая модель для расчета оптимального количества наставников. Учитывает план найма, сменность, отпуска, сложные участки и пиковые нагрузки.
+                        </p>
+                        <div class="mt-auto">
+                            <a href="/calculator" class="btn btn-success px-4">Открыть калькулятор</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

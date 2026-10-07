@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h3 mb-0 text-gray-800">Данные по наставникам</h2>
+        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#uploadCard">
+            <i class="bi bi-cloud-upload me-1"></i> Загрузить данные
+        </button>
+    </div>
+
+    <div class="collapse mb-4" id="uploadCard">
+        <div class="card shadow-sm" style="border-left: 4px solid #0d6efd;">
+            <div class="card-body">
+                <h6 class="card-title text-primary mb-3"><i class="bi bi-file-earmark-excel me-2"></i>Обновление базы данных</h6>
+                <form action="/upload" method="post" enctype="multipart/form-data" class="d-flex align-items-center">
+                    <input type="file" name="file" class="form-control me-3" accept=".xlsx, .xls, .xlsm" required style="max-width: 400px;">
+                    <button type="submit" class="btn btn-success"><i class="bi bi-upload me-1"></i> Загрузить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-funnel me-2"></i>Фильтры</h6>
+        </div>
+        <div class="card-body bg-light border-bottom">
+            <form id="filterForm" method="get" action="/mentors" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small mb-1">Площадка</label>
+                    <select name="site" class="form-select select2 auto-submit" data-placeholder="Все площадки">
+                        <option value=""></option>
+                        {% for s in sites %}
+                            <option value="{{ s.name }}" {% if s.name == site_filter %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small mb-1">Передел</label>
+                    <select name="division" class="form-select select2 auto-submit" data-placeholder="Все переделы">
+                        <option value=""></option>
+                        {% for d in divisions %}
+                            <option value="{{ d.name }}" {% if d.name == division_filter %}selected{% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small mb-1">Цех</label>
+                    <select name="shop" class="form-select select2 auto-submit" data-placeholder="Все цеха">
+                        <option value=""></option>
+                        {% for sh in shops %}
+                            <option value="{{ sh.name }}" {% if sh.name == shop_filter %}selected{% endif %}>{{ sh.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex flex-column">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input auto-submit" type="checkbox" name="show_zero" id="showZeroCheck" {% if show_zero %}checked{% endif %}>
+                            <label class="form-check-label small text-muted" for="showZeroCheck">
+                                Показать цеха без наставников
+                            </label>
+                        </div>
+                        <div>
+                            <a href="/mentors" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-x-circle me-1"></i> Сбросить фильтры</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="mentorsTable" class="table table-hover align-middle mb-0 w-100">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-muted">Площадка</th>
+                            <th class="text-muted">Передел</th>
+                            <th class="text-muted">Цех</th>
+                            <th class="text-muted text-center">Кол-во наставников</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in data %}
+                        <tr>
+                            <td class="fw-semibold">{{ row.site_name }}</td>
+                            <td>{{ row.division_name }}</td>
+                            <td>{{ row.shop_name }}</td>
+                            <td class="text-center" data-order="{{ row.mentors_count }}">
+                                {% if row.mentors_count > 0 %}
+                                    <span class="badge bg-success rounded-pill px-3 py-2" style="font-size: 0.9rem;">{{ row.mentors_count }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill px-3 py-2" style="font-size: 0.9rem;">0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('.select2').each(function() {
+            $(this).select2({
+                theme: 'bootstrap-5',
+                placeholder: $(this).data('placeholder'),
+                allowClear: true,
+                width: '100%'
+            });
+        });
+
+        $('.auto-submit').on('change', function() {
+            $('#filterForm').submit();
+        });
+
+        $('#mentorsTable').DataTable({
+            language: {
+                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json'
+            },
+
+            order: [[3, 'desc']],
+            pageLength: 25,
+            lengthMenu: [10, 25, 50, 100],
+            columnDefs: [
+                { targets: [0, 1, 2], type: 'string' },
+                { targets: 3, type: 'num' }
+            ]
+        });
+    });
+</script>
+{% endblock %}

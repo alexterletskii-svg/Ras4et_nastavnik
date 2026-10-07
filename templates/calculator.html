@@ -1,0 +1,483 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #0d6efd; --primary-hover: #0b5ed7;
+        --card-bg: #ffffff; --text-main: #0f172a; --text-muted: #64748b;
+        --border: #e2e8f0; --danger: #ef4444; --success: #10b981;
+        --warning: #f59e0b; --purple: #8b5cf6;
+    }
+
+    .btn-method {
+        background: white; color: var(--primary);
+        border: 2px solid var(--primary); border-radius: 8px;
+        padding: 8px 16px; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-method:hover { background: var(--primary); color: white; }
+
+    .dashboard-grid { display: grid; grid-template-columns: 400px 1fr; gap: 24px; }
+    @media (max-width: 992px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+    .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; margin: 20px 0 15px 0; display: flex; align-items: center; gap: 10px; }
+    .section-title:first-child { margin-top: 0; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .control-group { margin-bottom: 15px; background: #f8fafc; padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border); }
+    .control-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .control-header label { font-size: 13px; font-weight: 600; color: #334155; margin: 0; }
+    .value-badge { font-size: 13px; font-weight: 700; color: var(--primary); background: white; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); }
+
+    input[type="range"] { width: 100%; height: 6px; background: #cbd5e1; border-radius: 4px; outline: none; -webkit-appearance: none; margin-top: 5px; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--primary); border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+    .toggle-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; }
+    .toggle-row:hover { background: #f1f5f9; }
+    .toggle-row.active { background: #eff6ff; border-color: #bfdbfe; }
+    .toggle-switch { position: relative; width: 34px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 20px; }
+    .toggle-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; }
+    .toggle-switch input:checked + .toggle-slider { background-color: var(--primary); }
+    .toggle-switch input:checked + .toggle-slider:before { transform: translateX(14px); }
+    .toggle-label { font-size: 13px; font-weight: 600; color: #334155; }
+    .toggle-hint { font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.3; }
+
+    .sub-control { margin: 0 0 10px 46px; padding: 10px 12px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; }
+    .sub-control.hidden { display: none; }
+
+    .radio-group { display: flex; gap: 8px; margin-top: 8px; }
+    .radio-group label { flex: 1; padding: 6px 10px; text-align: center; font-size: 12px; font-weight: 600; color: #475569; background: white; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; margin: 0; }
+    .radio-group input { display: none; }
+    .radio-group label:has(input:checked) { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+
+    .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+    .metric-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 15px; text-align: center; }
+    .metric-card.primary { background: var(--primary); color: white; border: none; }
+    .metric-title { font-size: 11px; font-weight: 600; opacity: 0.85; margin-bottom: 5px; text-transform: uppercase; }
+    .metric-value { font-size: 32px; font-weight: 700; line-height: 1; margin: 10px 0; }
+    .metric-sub { font-size: 11px; opacity: 0.9; }
+
+    .formula-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #334155; margin-bottom: 15px; line-height: 1.6; }
+    .chart-container { height: 280px; width: 100%; margin-top: 20px; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3 mb-0 text-gray-800">Калькулятор потребности</h2>
+    <button class="btn-method" onclick="alert('Логика расчета описана в документации')">
+        <i class="bi bi-info-circle me-1"></i> Как проходит расчёт
+    </button>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-end mb-1">
+                    <label class="form-label text-muted small fw-bold mb-0">Выберите цех для расчета</label>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="showZeroShops">
+                        <label class="form-check-label small text-muted" for="showZeroShops">Показать цеха без наставников</label>
+                    </div>
+                </div>
+                <select id="shopSelect" class="form-select select2" data-placeholder="Начните вводить название цеха...">
+                </select>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <div class="text-muted small fw-bold">Текущее количество наставников в цехе:</div>
+                <div class="h2 mb-0 fw-bold text-dark" id="currentMentorsDisplay">-</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="section-title">Входящий поток и обучение</div>
+
+            <div class="control-group" style="border-left: 4px solid var(--purple);">
+                <div class="control-header">
+                    <label>План новых учеников на ГОД</label>
+                </div>
+                <input type="number" id="input_V_year" class="form-control form-control-sm mb-2" value="60" min="1" oninput="calculate()">
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
+                    В среднем в месяц: <b id="val_V_month" style="color: var(--purple);">5.0</b> чел.
+                </div>
+                <div class="radio-group">
+                    <label><input type="radio" name="V_mode" value="total" checked onchange="calculate()">Всего по цеху</label>
+                    <label><input type="radio" name="V_mode" value="per_shift" onchange="calculate()">На смену</label>
+                </div>
+            </div>
+
+            <div class="control-group" style="border-left: 4px solid var(--purple);">
+                <div class="control-header">
+                    <label>Срок адаптации (мес)</label>
+                    <span class="value-badge" style="color: var(--purple);" id="val_d">1.5</span>
+                </div>
+                <input type="range" id="input_d" min="0.25" max="6" step="0.25" value="1.5" oninput="calculate()">
+            </div>
+
+            <div class="section-title">Параметры цеха</div>
+
+            <div class="control-group">
+                <div class="control-header">
+                    <label>Вместимость наставника</label>
+                    <span class="value-badge" id="val_C">2</span>
+                </div>
+                <input type="range" id="input_C" min="1" max="5" value="2" oninput="calculate()">
+            </div>
+
+            <div class="control-group" style="border-left: 4px solid var(--warning);">
+                <div class="control-header">
+                    <label>Сменность цеха (смен/сутки)</label>
+                    <span class="value-badge" style="color: var(--warning);" id="val_k">1</span>
+                </div>
+                <input type="range" id="input_k" min="1" max="4" step="1" value="1" oninput="calculate()">
+            </div>
+
+            <label class="toggle-row" id="row_roundPerShift">
+                <span class="toggle-switch">
+                    <input type="checkbox" id="input_roundPerShift" checked onchange="calculate()">
+                    <span class="toggle-slider"></span>
+                </span>
+                <span>
+                    <div class="toggle-label">Округлять по сменам</div>
+                    <div class="toggle-hint">Наставник не делится между сменами</div>
+                </span>
+            </label>
+
+            <div class="section-title">Резервы и поправки</div>
+
+            <label class="toggle-row" id="row_alpha">
+                <span class="toggle-switch">
+                    <input type="checkbox" id="input_useAlpha" checked onchange="calculate()">
+                    <span class="toggle-slider"></span>
+                </span>
+                <span>
+                    <div class="toggle-label">Отсутствия наставников (α)</div>
+                </span>
+            </label>
+            <div class="sub-control" id="sub_alpha">
+                <div class="control-header">
+                    <label style="font-size: 12px;">Доля отсутствия</label>
+                    <span class="value-badge" style="color: var(--danger);" id="val_alpha">10%</span>
+                </div>
+                <input type="range" id="input_alpha" min="0" max="40" step="1" value="10" oninput="calculate()">
+            </div>
+
+            <label class="toggle-row" id="row_beta">
+                <span class="toggle-switch">
+                    <input type="checkbox" id="input_useBeta" onchange="calculate()">
+                    <span class="toggle-slider"></span>
+                </span>
+                <span>
+                    <div class="toggle-label">Отсутствия учеников (β)</div>
+                </span>
+            </label>
+            <div class="sub-control hidden" id="sub_beta">
+                <div class="control-header">
+                    <label style="font-size: 12px;">Доля отсутствия</label>
+                    <span class="value-badge" style="color: var(--danger);" id="val_beta">10%</span>
+                </div>
+                <input type="range" id="input_beta" min="0" max="40" step="1" value="10" oninput="calculate()">
+            </div>
+
+            <label class="toggle-row" id="row_gamma">
+                <span class="toggle-switch">
+                    <input type="checkbox" id="input_useGamma" onchange="calculate()">
+                    <span class="toggle-slider"></span>
+                </span>
+                <span>
+                    <div class="toggle-label">Неполная занятость (γ)</div>
+                </span>
+            </label>
+            <div class="sub-control hidden" id="sub_gamma">
+                <div class="control-header">
+                    <label style="font-size: 12px;">Время на наставничество</label>
+                    <span class="value-badge" style="color: var(--purple);" id="val_gamma">70%</span>
+                </div>
+                <input type="range" id="input_gamma" min="20" max="100" step="5" value="70" oninput="calculate()">
+            </div>
+
+            <label class="toggle-row" id="row_hard">
+                <span class="toggle-switch">
+                    <input type="checkbox" id="input_useHard" onchange="calculate()">
+                    <span class="toggle-slider"></span>
+                </span>
+                <span>
+                    <div class="toggle-label">Сложные участки (1:1)</div>
+                </span>
+            </label>
+            <div class="sub-control hidden" id="sub_hard">
+                <div class="control-header">
+                    <label style="font-size: 12px;">Доля сложных участков</label>
+                    <span class="value-badge" style="color: var(--danger);" id="val_hard">30%</span>
+                </div>
+                <input type="range" id="input_hard" min="0" max="100" step="5" value="30" oninput="calculate()">
+            </div>
+
+            <label class="toggle-row" id="row_peak">
+                <span class="toggle-switch">
+                    <input type="checkbox" id="input_usePeak" onchange="calculate()">
+                    <span class="toggle-slider"></span>
+                </span>
+                <span>
+                    <div class="toggle-label">Пиковая нагрузка</div>
+                </span>
+            </label>
+            <div class="sub-control hidden" id="sub_peak">
+                <div class="control-header">
+                    <label style="font-size: 12px;">Коэффициент пика</label>
+                    <span class="value-badge" style="color: var(--warning);" id="val_peak">1.30×</span>
+                </div>
+                <input type="range" id="input_peak" min="100" max="200" step="5" value="130" oninput="calculate()">
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <div class="results-grid">
+                <div class="metric-card primary">
+                    <div class="metric-title">Потребность</div>
+                    <div class="metric-value" id="res_mentors_count">0</div>
+                    <div class="metric-sub">С учётом параметров</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Активных учеников</div>
+                    <div class="metric-value text-dark" id="res_active_trainees">0</div>
+                    <div class="metric-sub">Среднее в моменте</div>
+                </div>
+                <div class="metric-card" id="diffCard">
+                    <div class="metric-title">Статус штата</div>
+                    <div class="metric-value" id="res_diff">-</div>
+                    <div class="metric-sub" id="res_diff_sub">Выберите цех</div>
+                </div>
+            </div>
+
+            <details class="mb-3">
+                <summary class="text-muted small fw-bold" style="cursor: pointer;">▸ Показать числовой расчёт по шагам</summary>
+                <div class="formula-box mt-2" id="formula_box"></div>
+            </details>
+
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!--Скачать библиотеку-->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let myChart;
+    const allShops = [
+        {% for shop in shops %}
+        { id: "{{ shop.id }}", name: "{{ shop.name }}", mentors_count: {{ shop.mentors_count }} },
+        {% endfor %}
+    ];
+
+    function updateShopList() {
+        const showZero = $('#showZeroShops').is(':checked');
+        const $select = $('#shopSelect');
+        const currentValue = $select.val();
+
+        $select.empty(); // Очищаем список
+        $select.append('<option value=""></option>');
+
+        allShops.forEach(shop => {
+            if (showZero || shop.mentors_count > 0) {
+                const option = new Option(shop.name, shop.id, false, false);
+                $(option).attr('data-mentors', shop.mentors_count);
+                $select.append(option);
+            }
+        });
+
+
+        if ($select.find(`option[value="${currentValue}"]`).length > 0) {
+            $select.val(currentValue);
+        } else {
+            $select.val(null);
+            $('#currentMentorsDisplay').text('-');
+        }
+
+        $select.trigger('change.select2');
+        calculate();
+    }
+
+    $(document).ready(function() {
+        $('#shopSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: $(this).data('placeholder'),
+            allowClear: true
+        }).on('change', function() {
+            const selected = $(this).find('option:selected');
+            if (selected.val()) {
+                const mentors = selected.data('mentors');
+                $('#currentMentorsDisplay').text(mentors);
+            } else {
+                $('#currentMentorsDisplay').text('-');
+            }
+            calculate();
+        });
+
+        $('#showZeroShops').on('change', updateShopList);
+
+        updateShopList();
+
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Структура итоговой потребности'],
+                datasets: [
+                    { label: 'База (без резервов)',        data: [0], backgroundColor: '#3b82f6', borderRadius: 4 },
+                    { label: 'Сложные участки (h)',        data: [0], backgroundColor: '#ec4899', borderRadius: 4 },
+                    { label: 'Отсутствия учеников (β)',    data: [0], backgroundColor: '#f97316', borderRadius: 4 },
+                    { label: 'Неполная занятость (γ)',     data: [0], backgroundColor: '#8b5cf6', borderRadius: 4 },
+                    { label: 'Отсутствия наставников (α)', data: [0], backgroundColor: '#ef4444', borderRadius: 4 },
+                    { label: 'Пиковая нагрузка',           data: [0], backgroundColor: '#f59e0b', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                },
+                scales: {
+                    y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { stacked: true, grid: { display: false } }
+                }
+            }
+        });
+    });
+
+    function syncToggleRows() {
+        const pairs = [
+            ['input_useAlpha', 'sub_alpha', 'row_alpha'],
+            ['input_useBeta',  'sub_beta',  'row_beta'],
+            ['input_useGamma', 'sub_gamma', 'row_gamma'],
+            ['input_useHard',  'sub_hard',  'row_hard'],
+            ['input_usePeak',  'sub_peak',  'row_peak']
+        ];
+        pairs.forEach(([inp, sub, row]) => {
+            const on = document.getElementById(inp).checked;
+            document.getElementById(sub).classList.toggle('hidden', !on);
+            document.getElementById(row).classList.toggle('active', on);
+        });
+        document.getElementById('row_roundPerShift').classList.toggle(
+            'active', document.getElementById('input_roundPerShift').checked);
+    }
+
+    function calculate() {
+        syncToggleRows();
+
+        const V_year = parseFloat(document.getElementById('input_V_year').value) || 0;
+        const V = V_year / 12; // Перевод плана на год в поток в месяц
+        
+        const d = parseFloat(document.getElementById('input_d').value);
+        const C = parseFloat(document.getElementById('input_C').value);
+        const k = parseFloat(document.getElementById('input_k').value);
+        const V_mode = document.querySelector('input[name="V_mode"]:checked').value;
+
+        const useAlpha = document.getElementById('input_useAlpha').checked;
+        const alpha = useAlpha ? parseFloat(document.getElementById('input_alpha').value) / 100 : 0;
+        const useBeta = document.getElementById('input_useBeta').checked;
+        const beta = useBeta ? parseFloat(document.getElementById('input_beta').value) / 100 : 0;
+        const useGamma = document.getElementById('input_useGamma').checked;
+        const gamma = useGamma ? parseFloat(document.getElementById('input_gamma').value) / 100 : 1;
+        const useHard = document.getElementById('input_useHard').checked;
+        const h = useHard ? parseFloat(document.getElementById('input_hard').value) / 100 : 0;
+        const usePeak = document.getElementById('input_usePeak').checked;
+        const peak = usePeak ? parseFloat(document.getElementById('input_peak').value) / 100 : 1;
+        const roundPerShift = document.getElementById('input_roundPerShift').checked;
+
+        document.getElementById('val_V_month').innerText = V.toFixed(1);
+        document.getElementById('val_d').innerText = d;
+        document.getElementById('val_C').innerText = C;
+        document.getElementById('val_k').innerText = k;
+        document.getElementById('val_alpha').innerText = (alpha * 100).toFixed(0) + '%';
+        document.getElementById('val_beta').innerText  = (beta  * 100).toFixed(0) + '%';
+        document.getElementById('val_gamma').innerText = (gamma * 100).toFixed(0) + '%';
+        document.getElementById('val_hard').innerText  = (h     * 100).toFixed(0) + '%';
+        document.getElementById('val_peak').innerText  = peak.toFixed(2) + '×';
+
+        let V_per_shift, V_total;
+        if (V_mode === 'per_shift') { V_per_shift = V; V_total = V * k; }
+        else                        { V_total = V;     V_per_shift = V / k; }
+
+        const active_per_shift = V_per_shift * d;
+        const active_total     = V_total * d;
+        const C_eff = C / (h * C + (1 - h));
+        const trainee_inflation = 1 / (1 - beta);
+
+        const step0 = active_per_shift / C;
+        const step1 = active_per_shift / C_eff;
+        const step2 = (active_per_shift * trainee_inflation) / C_eff;
+        const step3 = step2 / gamma;
+        const step4 = step3 / (1 - alpha);
+        const step5 = step4 * peak;
+
+        let final_mentors;
+        if (roundPerShift) final_mentors = Math.ceil(step5) * k;
+        else               final_mentors = Math.ceil(step5 * k);
+
+        document.getElementById('res_mentors_count').innerText = final_mentors;
+        document.getElementById('res_active_trainees').innerText = active_total.toFixed(1);
+
+        const selectedShop = $('#shopSelect').find('option:selected');
+        const diffEl = document.getElementById('res_diff');
+        const diffSubEl = document.getElementById('res_diff_sub');
+        
+        if (selectedShop.val()) {
+            const currentMentors = parseInt(selectedShop.data('mentors')) || 0;
+            const diff = currentMentors - final_mentors;
+            
+            if (diff < 0) {
+                diffEl.innerText = diff;
+                diffEl.style.color = 'var(--danger)';
+                diffSubEl.innerText = 'Не хватает наставников';
+            } else if (diff > 0) {
+                diffEl.innerText = '+' + diff;
+                diffEl.style.color = 'var(--success)';
+                diffSubEl.innerText = 'Профицит наставников';
+            } else {
+                diffEl.innerText = '0';
+                diffEl.style.color = 'var(--text-main)';
+                diffSubEl.innerText = 'Штат укомплектован идеально';
+            }
+        } else {
+            diffEl.innerText = '-';
+            diffEl.style.color = 'var(--text-main)';
+            diffSubEl.innerText = 'Выберите цех';
+        }
+
+        const lines = [
+            `V = ${V.toFixed(2)} чел/мес`,
+            `Активных учеников: <b>${active_total.toFixed(2)}</b>`,
+            `База на смену: <b>${step0.toFixed(2)}</b>`,
+            `Итого на смену (с резервами): <b>${step5.toFixed(2)}</b>`,
+            `Итого потребность: <b>${final_mentors}</b>`
+        ];
+        document.getElementById('formula_box').innerHTML = lines.join('<br>');
+
+
+        if(myChart) {
+            myChart.data.datasets[0].data = [step0 * k];
+            myChart.data.datasets[1].data = [Math.max(0, step1 - step0) * k];
+            myChart.data.datasets[2].data = [Math.max(0, step2 - step1) * k];
+            myChart.data.datasets[3].data = [Math.max(0, step3 - step2) * k];
+            myChart.data.datasets[4].data = [Math.max(0, step4 - step3) * k];
+            myChart.data.datasets[5].data = [Math.max(0, step5 - step4) * k];
+            myChart.update();
+        }
+    }
+</script>
+{% endblock %}

@@ -10,42 +10,81 @@
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
     <style>
-        body { background-color: #f4f6f9; }
-        .navbar-brand { font-weight: 500; letter-spacing: 0.5px; }
-        .card { border: none; border-radius: 0.5rem; }
-        div.dataTables_wrapper div.dataTables_filter input { margin-left: 0.5em; display: inline-block; width: auto; }
+        body {
+            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* Стили современной навигации */
+        .custom-navbar {
+            background-color: #0f172a; /* Глубокий темно-синий */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 0;
+        }
+
+        .custom-nav-link {
+            color: #94a3b8 !important; /* Приглушенный серый */
+            font-weight: 500;
+            font-size: 0.95rem;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            margin: 0 0.25rem;
+        }
+
+        .custom-nav-link:hover {
+            color: #f8fafc !important;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .custom-nav-link.active {
+            color: #3b82f6 !important; /* Синий акцент */
+            background-color: rgba(59, 130, 246, 0.1);
+            font-weight: 600;
+        }
+
+        /* Тонкая настройка DataTables для соответствия стилю */
+        .card { border: none; border-radius: 12px; }
+        div.dataTables_wrapper div.dataTables_filter input {
+            margin-left: 0.5em; display: inline-block; width: auto;
+            border-radius: 6px; border: 1px solid #e2e8f0;
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <nav class="navbar navbar-expand-lg custom-navbar sticky-top shadow-sm">
         <div class="container-fluid px-4">
-            <a class="navbar-brand" href="/">Потребность в наставниках</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <!-- Только логотип -->
+            <a class="navbar-brand" href="/">
+                <img src="/static/pic/logo_white.png" alt="Логотип" height="64">
+            </a>
+
+            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <i class="bi bi-list fs-1 text-white opacity-75"></i>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarNav">
-                                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav ms-4 me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Главная</a>
+                        <a class="nav-link custom-nav-link {% if request.path == '/' %}active{% endif %}" href="/">Главная</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/mentors' %}active{% endif %}" href="/mentors">Информация о наставниках</a>
+                        <a class="nav-link custom-nav-link {% if request.path == '/mentors' %}active{% endif %}" href="/mentors">Информация о наставниках</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/calculator' %}active{% endif %}" href="/calculator">Калькулятор потребности</a>
+                        <a class="nav-link custom-nav-link {% if request.path == '/calculator' %}active{% endif %}" href="/calculator">Калькулятор потребности</a>
                     </li>
                 </ul>
-
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid px-4 mt-4">
+    <div class="container-fluid px-4 mt-4 mb-5">
         {% with messages = get_flashed_messages() %}
           {% if messages %}
             {% for message in messages %}
-              <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+              <div class="alert alert-success alert-dismissible fade show shadow-sm" style="border-radius: 10px; border-left: 4px solid #10b981;" role="alert">
+                <i class="bi bi-check-circle-fill me-2 text-success"></i>{{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
               </div>
             {% endfor %}

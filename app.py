@@ -2,7 +2,7 @@ import os
 import sqlite3
 import pandas as pd
 from flask import Flask, render_template, request, redirect, flash
-
+import json
 
 app = Flask(__name__)
 app.secret_key = '123456'
@@ -14,6 +14,68 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+
+# Очистка табельного номера
+def clean_emp_code(val):
+    s = str(val).strip()
+    if s.endswith('.0'):
+        s = s[:-2]
+    return s if s != 'nan' and s else None
+
+
+# Поиск или создание цеха
+def get_or_create_shop(cursor, shop_name, shop_code=None):
+    if not shop_name or str(shop_name).lower() == 'nan':
+        return None
+
+    shop_name = str(shop_name).strip()
+    shop_code = str(shop_code).strip() if pd.notna(shop_code) else None
+
+    # Ищем по коду
+    if shop_code and shop_code != 'nan':
+        cursor.execute('SELECT id FROM shops WHERE shop_code = ?', (shop_code,))
+        res = cursor.fetchone()
+        if res:
+            return res['id']
+
+    # Ищем по названию
+    cursor.execute('SELECT id FROM shops WHERE name = ?', (shop_name,))
+    res = cursor.fetchone()
+    if res:
+        shop_id = res['id']
+        if shop_code and shop_code != 'nan':
+            cursor.execute('UPDATE shops SET shop_code = ? WHERE id = ?', (shop_code, shop_id))
+        return shop_id
+
+    # Если не нашли, кидаем в "Нераспределенное"
+    cursor.execute('SELECT id FROM sites WHERE name = "Нераспределенное"')
+    site = cursor.fetchone()
+    if not site:
+        cursor.execute('INSERT INTO sites (name) VALUES ("Нераспределенное")')
+        site_id = cursor.lastrowid
+    else:
+        site_id = site['id']
+
+    cursor.execute('SELECT id FROM divisions WHERE name = "Нераспределенное" AND site_id = ?', (site_id,))
+    div = cursor.fetchone()
+    if not div:
+        cursor.execute('INSERT INTO divisions (site_id, name) VALUES (?, "Нераспределенное")', (site_id,))
+        div_id = cursor.lastrowid
+    else:
+        div_id = div['id']
+
+    cursor.execute('INSERT INTO shops (division_id, name, shop_code) VALUES (?, ?, ?)', (div_id, shop_name, shop_code))
+    return cursor.lastrowid
+
+
+# Умный поиск строки с заголовками (игнорирует звездочки)
+def find_header_row(df_raw, required_cols):
+    for idx, row in df_raw.iterrows():
+        row_vals = [str(val).replace('*', '').strip() for val in row.values]
+        if all(col in row_vals for col in required_cols):
+            return idx
+    return -1
 
 
 @app.route('/')
@@ -39,11 +101,13 @@ def mentors_data():
             s.name as site_name, 
             d.name as division_name, 
             sh.name as shop_name, 
-            COUNT(m.id) as mentors_count
+            (SELECT COUNT(id) FROM mentors WHERE shop_id = sh.id AND is_active = 1) as active_mentors,
+            (SELECT COUNT(id) FROM mentors WHERE shop_id = sh.id AND is_active = 0) as dismissed_mentors,
+            (SELECT COUNT(id) FROM employees WHERE shop_id = sh.id) as employees_count,
+            (SELECT IFNULL(SUM(headcount_change), 0) FROM org_events WHERE shop_id = sh.id) as org_events_sum
         FROM sites s
         JOIN divisions d ON s.id = d.site_id
         JOIN shops sh ON d.id = sh.division_id
-        LEFT JOIN mentors m ON sh.id = m.shop_id
         WHERE 1=1
     '''
     params = []
@@ -58,105 +122,221 @@ def mentors_data():
         query += ' AND sh.name = ?'
         params.append(shop_filter)
 
-    query += ' GROUP BY s.id, d.id, sh.id'
-
     if not show_zero:
-        query += ' HAVING COUNT(m.id) > 0'
+        query += ' AND (SELECT COUNT(id) FROM mentors WHERE shop_id = sh.id AND is_active = 1) > 0'
 
     query += ' ORDER BY s.name, d.name, sh.name'
 
-    data = conn.execute(query, params).fetchall()
+    data_rows = conn.execute(query, params).fetchall()
     conn.close()
 
+    data = []
+    for row in data_rows:
+        data.append({
+            'site_name': row['site_name'],
+            'division_name': row['division_name'],
+            'shop_name': row['shop_name'],
+            'active_mentors': row['active_mentors'],
+            'dismissed_mentors': row['dismissed_mentors'],
+            'employees_count': row['employees_count'],
+            'org_events_sum': row['org_events_sum']
+        })
+
     return render_template(
-        'mentors.html',
-        data=data,
-        sites=sites,
-        divisions=divisions,
-        shops=shops,
-        site_filter=site_filter,
-        division_filter=division_filter,
-        shop_filter=shop_filter,
-        show_zero=show_zero
+        'mentors.html', data=data, sites=sites, divisions=divisions, shops=shops,
+        site_filter=site_filter, division_filter=division_filter, shop_filter=shop_filter, show_zero=show_zero,
+        chart_data_json=json.dumps(data)
     )
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        flash('Файл не найден')
-        return redirect('/mentors')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    files_processed = 0
 
-    file = request.files['file']
-    if file.filename == '':
-        flash('Файл не выбран')
-        return redirect('/mentors')
+    try:
+        # 1. ШТАТНОЕ РАСПИСАНИЕ
+        file_staff = request.files.get('file_staff')
+        if file_staff and file_staff.filename:
+            df_raw = pd.read_excel(file_staff, header=None)
+            header_idx = find_header_row(df_raw, ['Наименование подразделения (полное)', 'ФН'])
 
-    if file and (file.filename.endswith('.xlsx') or file.filename.endswith('.xls') or file.filename.endswith('.xlsm')):
+            if header_idx != -1:
+                df = pd.read_excel(file_staff, header=header_idx)
+                df.columns = [str(c).replace('*', '').strip() for c in df.columns]
 
-        try:
-            df_raw = pd.read_excel(file, header=None)
-            header_idx = -1
+                cursor.execute('DELETE FROM mentors')
+                for index, row in df.iterrows():
+                    site_name = str(row.get('Раздел персонала (текст, т.е. адрес)', '')).strip()
+                    division_name = str(row.get('ФН', '')).strip()
+                    shop_name = str(row.get('Наименование подразделения (полное)', '')).strip()
 
-            for idx, row in df_raw.iterrows():
-                row_values = [str(val).strip() for val in row.values]
-                if 'Наименование подразделения (полное)' in row_values and 'ФН' in row_values:
-                    header_idx = idx
-                    break
+                    if site_name == 'nan' or not site_name:
+                        continue
 
-            if header_idx == -1:
-                flash('Не найдены требуемые столбцы в файле Excel.')
-                return redirect('/mentors')
+                    cursor.execute('SELECT id FROM sites WHERE name = ?', (site_name,))
+                    site = cursor.fetchone()
+                    if not site:
+                        cursor.execute('INSERT INTO sites (name) VALUES (?)', (site_name,))
+                        site_id = cursor.lastrowid
+                    else:
+                        site_id = site['id']
 
-            df = pd.read_excel(file, header=header_idx)
+                    cursor.execute('SELECT id FROM divisions WHERE name = ? AND site_id = ?', (division_name, site_id))
+                    division = cursor.fetchone()
+                    if not division:
+                        cursor.execute('INSERT INTO divisions (site_id, name) VALUES (?, ?)', (site_id, division_name))
+                        division_id = cursor.lastrowid
+                    else:
+                        division_id = division['id']
 
-            conn = get_db_connection()
-            cursor = conn.cursor()
+                    cursor.execute('SELECT id FROM shops WHERE name = ? AND division_id = ?', (shop_name, division_id))
+                    shop = cursor.fetchone()
+                    if not shop:
+                        cursor.execute('INSERT INTO shops (division_id, name) VALUES (?, ?)', (division_id, shop_name))
+                        shop_id = cursor.lastrowid
+                    else:
+                        shop_id = shop['id']
 
-            for index, row in df.iterrows():
-                site_name = str(row.get('Раздел персонала (текст, т.е. адрес)', '')).strip()
-                division_name = str(row.get('ФН', '')).strip()
-                shop_name = str(row.get('Наименование подразделения (полное)', '')).strip()
-                is_mentor_val = str(row.get('Наставник', '')).strip().lower()
+                    is_mentor_val = str(row.get('Наставник', '')).strip().lower()
+                    if is_mentor_val in ['да', 'yes', '1', '+', 'true']:
+                        emp_code = clean_emp_code(row.get('Табельный номер'))
+                        fio = str(row.get('ФИО работника', '')).strip()
+                        fio_val = fio if fio != 'nan' else None
 
-                if site_name == 'nan' or not site_name:
-                    continue
+                        cursor.execute('''
+                            INSERT INTO mentors (shop_id, emp_code, full_name, is_active) 
+                            VALUES (?, ?, ?, 1)
+                        ''', (shop_id, emp_code, fio_val))
+                files_processed += 1
 
-                cursor.execute('SELECT id FROM sites WHERE name = ?', (site_name,))
-                site = cursor.fetchone()
-                if not site:
-                    cursor.execute('INSERT INTO sites (name) VALUES (?)', (site_name,))
-                    site_id = cursor.lastrowid
-                else:
-                    site_id = site['id']
+        # 2. СПИСОЧНАЯ ЧИСЛЕННОСТЬ
+        file_emp = request.files.get('file_employees')
+        if file_emp and file_emp.filename:
+            df_raw = pd.read_excel(file_emp, header=None)
+            header_idx = find_header_row(df_raw, ['Табельный №', 'Подразделение 1 уровня'])
 
-                cursor.execute('SELECT id FROM divisions WHERE name = ? AND site_id = ?', (division_name, site_id))
-                division = cursor.fetchone()
-                if not division:
-                    cursor.execute('INSERT INTO divisions (site_id, name) VALUES (?, ?)', (site_id, division_name))
-                    division_id = cursor.lastrowid
-                else:
-                    division_id = division['id']
+            if header_idx != -1:
+                df = pd.read_excel(file_emp, header=header_idx)
+                df.columns = [str(c).replace('*', '').strip() for c in df.columns]
 
-                cursor.execute('SELECT id FROM shops WHERE name = ? AND division_id = ?', (shop_name, division_id))
-                shop = cursor.fetchone()
-                if not shop:
-                    cursor.execute('INSERT INTO shops (division_id, name) VALUES (?, ?)', (division_id, shop_name))
-                    shop_id = cursor.lastrowid
-                else:
-                    shop_id = shop['id']
+                cursor.execute('DELETE FROM employees')
+                for index, row in df.iterrows():
+                    shop_name = row.get('Подразделение 1 уровня')
+                    shop_code = row.get('Код подразделения 1 уровня')
+                    shop_id = get_or_create_shop(cursor, shop_name, shop_code)
 
-                if is_mentor_val == 'да':
+                    if not shop_id:
+                        continue
+
+                    emp_code = clean_emp_code(row.get('Табельный №'))
+                    if not emp_code:
+                        continue
+
                     cursor.execute('''
-                        INSERT INTO mentors (shop_id, first_name, last_name, experience_years, specialization) 
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (shop_id, 'Имя', 'Неизвестно', 0, 'Не указана'))
+                        INSERT INTO employees (shop_id, emp_code, position, gender, birth_date, retirement_date, report_date)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        shop_id,
+                        emp_code,
+                        str(row.get('Должность', '')).strip(),
+                        str(row.get('Пол', '')).strip(),
+                        str(row.get('Дата рождения', '')).strip(),
+                        str(row.get('Плановая дата выхода на пенсию', '')).strip(),
+                        str(row.get('Дата формирования отчёта', '')).strip()
+                    ))
+                files_processed += 1
 
-            conn.commit()
-            conn.close()
-            flash('Данные успешно загружены и обработаны!')
-        except Exception as e:
-            flash(f'Ошибка при обработке файла: {str(e)}')
+        # 3. УВОЛЕННЫЕ
+        file_dism = request.files.get('file_dismissals')
+        if file_dism and file_dism.filename:
+            df_raw = pd.read_excel(file_dism, header=None)
+            header_idx = find_header_row(df_raw, ['Таб.№', 'Название цеха'])
+
+            if header_idx != -1:
+                df = pd.read_excel(file_dism, header=header_idx)
+                df.columns = [str(c).replace('*', '').strip() for c in df.columns]
+
+                cursor.execute('DELETE FROM dismissals')
+                for index, row in df.iterrows():
+                    shop_name = row.get('Название цеха')
+                    shop_code = row.get('Код цеха')
+                    shop_id = get_or_create_shop(cursor, shop_name, shop_code)
+
+                    if not shop_id:
+                        continue
+
+                    emp_code = clean_emp_code(row.get('Таб.№'))
+                    if not emp_code:
+                        continue
+
+                    fio = str(row.get('ФИО работника', '')).strip()
+
+                    cursor.execute('''
+                        INSERT INTO dismissals (shop_id, emp_code, full_name, dismissal_date, position, reason)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        shop_id,
+                        emp_code,
+                        fio if fio != 'nan' else None,
+                        str(row.get('Увольн.', '')).strip(),
+                        str(row.get('Должность', '')).strip(),
+                        str(row.get('Причина мероприятия', '')).strip()
+                    ))
+
+                    # Деактивируем наставника при увольнении
+                    cursor.execute('UPDATE mentors SET is_active = 0 WHERE emp_code = ?', (emp_code,))
+                files_processed += 1
+
+        # 4. ОРГ МЕРОПРИЯТИЯ
+        file_org = request.files.get('file_org')
+        if file_org and file_org.filename:
+            df_raw = pd.read_excel(file_org, header=None)
+            header_idx = find_header_row(df_raw, ['Кол-во ШЕ', 'Подразделение 1 уровня'])
+
+            if header_idx != -1:
+                df = pd.read_excel(file_org, header=header_idx)
+                df.columns = [str(c).replace('*', '').strip() for c in df.columns]
+
+                cursor.execute('DELETE FROM org_events')
+                for index, row in df.iterrows():
+                    shop_name = row.get('Подразделение 1 уровня')
+                    shop_code = row.get('Код подразделения 1 уровня')
+                    shop_id = get_or_create_shop(cursor, shop_name, shop_code)
+
+                    if not shop_id:
+                        continue
+
+                    try:
+                        headcount = float(row.get('Кол-во ШЕ', 0))
+                    except:
+                        headcount = 0.0
+
+                    cursor.execute('''
+                        INSERT INTO org_events (shop_id, event_type, event_description, position, planned_year, planned_month, headcount_change)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        shop_id,
+                        str(row.get('Тип мероприятия', '')).strip(),
+                        str(row.get('Краткое содержание мероприятия', '')).strip(),
+                        str(row.get('Должность', '')).strip(),
+                        row.get('Год внедр.'),
+                        row.get('Месяц внедр.'),
+                        headcount
+                    ))
+                files_processed += 1
+
+        conn.commit()
+        if files_processed > 0:
+            flash(f'Успешно обработано файлов: {files_processed}', 'success')
+        else:
+            flash('Не выбрано ни одного файла или не найдены нужные колонки.', 'warning')
+
+    except Exception as e:
+        flash(f'Ошибка при обработке файлов: {str(e)}', 'danger')
+    finally:
+        conn.close()
 
     return redirect('/mentors')
 
@@ -170,14 +350,13 @@ def calculator():
             sh.name, 
             COUNT(m.id) as mentors_count
         FROM shops sh
-        LEFT JOIN mentors m ON sh.id = m.shop_id
+        LEFT JOIN mentors m ON sh.id = m.shop_id AND m.is_active = 1
         GROUP BY sh.id
         ORDER BY sh.name
     ''').fetchall()
     conn.close()
 
     shops = [{'id': row['id'], 'name': row['name'], 'mentors_count': row['mentors_count']} for row in shops_data]
-
     return render_template('calculator.html', shops=shops)
 
 

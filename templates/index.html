@@ -2,72 +2,140 @@
 
 {% block content %}
 <style>
-    .hover-card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    body {
+        background-color: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
-    .hover-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important;
+
+    /* Стили для ленты статистики */
+    .stat-ribbon {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 10px 15px -5px rgba(0,0,0,0.02);
     }
-    .icon-wrapper {
-        width: 48px;
-        height: 48px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        margin-bottom: 1.25rem;
+    .stat-block { padding: 1.75rem 2rem; }
+    .stat-block:not(:last-child) { border-right: 1px solid #f1f5f9; }
+
+    /* Адаптивность для ленты */
+    @media (max-width: 768px) {
+        .stat-block:not(:last-child) { border-right: none; border-bottom: 1px solid #f1f5f9; }
+    }
+
+    /* Типографика */
+    .tracking-wide { letter-spacing: 0.05em; }
+    .title-tight { letter-spacing: -0.02em; }
+
+    /* Карточки модулей */
+    .module-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .module-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 12px 25px -5px rgba(0,0,0,0.05);
+        transform: translateY(-2px);
+    }
+
+    .module-icon {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .bg-blue-soft { background: #eff6ff; color: #2563eb; }
+    .bg-emerald-soft { background: #ecfdf5; color: #059669; }
+
+    .action-link {
+        font-size: 0.875rem; font-weight: 600;
+        display: flex; align-items: center; gap: 0.5rem;
+        margin-top: auto; padding-top: 1.5rem;
     }
 </style>
 
-<div class="row justify-content-center mt-2">
-    <div class="col-lg-10">
+<div class="py-2">
+    <!-- Заголовок -->
+    <div class="mb-5">
+        <h1 class="fw-bold text-dark mb-2 title-tight">Аналитика наставничества</h1>
+        <p class="text-secondary fs-5 mb-0">Сводные данные и планирование потребности в персонале</p>
+    </div>
 
-        <div class="p-4 p-md-5 mb-4 bg-white rounded-3 shadow-sm border border-light">
-            <div class="container-fluid py-2">
-                <h1 class="display-6 fw-bold text-dark mb-3">Система управления наставничеством</h1>
-                <p class="col-md-10 fs-5 text-muted mb-0">
-                   Микросервис для работы с базой наставников и планирования потребности в персонале. Выберите необходимый модуль для начала работы.
+    <!-- Единая лента статистики -->
+<!--    <div class="stat-ribbon mb-5">-->
+<!--        <div class="row g-0">-->
+<!--            <div class="col-md-3 stat-block">-->
+<!--                <div class="text-muted small fw-bold text-uppercase tracking-wide mb-2">Активные наставники</div>-->
+<!--                <div class="d-flex align-items-baseline gap-2">-->
+<!--                    <div class="display-6 fw-bold text-dark" style="line-height: 1;">{{ stats.active_mentors }}</div>-->
+<!--                    <span class="badge bg-light text-secondary border rounded-pill fw-medium">Всего</span>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            <div class="col-md-3 stat-block">-->
+<!--                <div class="text-muted small fw-bold text-uppercase tracking-wide mb-2">Охват штата</div>-->
+<!--                <div class="d-flex align-items-baseline gap-2">-->
+<!--                    <div class="display-6 fw-bold text-dark" style="line-height: 1;">{{ stats.coverage }}%</div>-->
+<!--                    <span class="badge bg-light text-secondary border rounded-pill fw-medium">От {{ stats.total_staff }}</span>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            <div class="col-md-3 stat-block">-->
+<!--                <div class="text-muted small fw-bold text-uppercase tracking-wide mb-2">План найма</div>-->
+<!--                <div class="d-flex align-items-baseline gap-2">-->
+<!--                    <div class="display-6 fw-bold text-primary" style="line-height: 1;">+{{ stats.planned_hiring }}</div>-->
+<!--                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill fw-medium">Орг. мер.</span>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            <div class="col-md-3 stat-block">-->
+<!--                <div class="text-muted small fw-bold text-uppercase tracking-wide mb-2">Потери</div>-->
+<!--                <div class="d-flex align-items-baseline gap-2">-->
+<!--                    <div class="display-6 fw-bold text-danger" style="line-height: 1;">{{ stats.dismissed }}</div>-->
+<!--                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill fw-medium">Уволено</span>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
+
+    <!-- Модули -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <a href="/mentors" class="module-card p-4 p-lg-5">
+                <div class="module-icon bg-blue-soft">
+                    <i class="bi bi-bar-chart-fill fs-4"></i>
+                </div>
+                <h4 class="fw-bold text-dark mb-3 title-tight">База данных и аналитика</h4>
+                <p class="text-secondary mb-0" style="line-height: 1.6;">
+                    Детальная информация по площадкам, переделам и цехам. Загрузка актуальных данных из кадровых отчетов (Excel) и мониторинг текущего состояния штата.
                 </p>
-            </div>
+                <div class="action-link text-primary">
+                    Перейти к аналитике <i class="bi bi-arrow-right"></i>
+                </div>
+            </a>
         </div>
 
-        <div class="row g-4">
-
-            <div class="col-md-6">
-                <div class="card h-100 shadow-sm border-0 hover-card">
-                    <div class="card-body p-4 d-flex flex-column">
-                        <div class="icon-wrapper bg-primary bg-opacity-10 text-primary">
-                            <i class="bi bi-table fs-4"></i>
-                        </div>
-                        <h4 class="card-title fw-bold text-dark">Информация о наставниках</h4>
-                        <p class="card-text text-muted mb-4">
-                            Сводная аналитика по площадкам, переделам и цехам. Загрузка актуальных данных из кадровых отчетов (формат Excel) и мониторинг текущего состояния штата.
-                        </p>
-                        <div class="mt-auto">
-                            <a href="/mentors" class="btn btn-primary px-4">Перейти к базе данных</a>
-                        </div>
-                    </div>
+        <div class="col-md-6">
+            <a href="/calculator" class="module-card p-4 p-lg-5">
+                <div class="module-icon bg-emerald-soft">
+                    <i class="bi bi-calculator-fill fs-4"></i>
                 </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card h-100 shadow-sm border-0 hover-card">
-                    <div class="card-body p-4 d-flex flex-column">
-                        <div class="icon-wrapper bg-success bg-opacity-10 text-success">
-                            <i class="bi bi-calculator fs-4"></i>
-                        </div>
-                        <h4 class="card-title fw-bold text-dark">Калькулятор потребности</h4>
-                        <p class="card-text text-muted mb-4">
-                            Математическая модель для расчета оптимального количества наставников. Учитывает план найма, сменность, отпуска, сложные участки и пиковые нагрузки.
-                        </p>
-                        <div class="mt-auto">
-                            <a href="/calculator" class="btn btn-success px-4">Открыть калькулятор</a>
-                        </div>
-                    </div>
+                <h4 class="fw-bold text-dark mb-3 title-tight">Калькулятор потребности</h4>
+                <p class="text-secondary mb-0" style="line-height: 1.6;">
+                    Математическая модель для расчета оптимального количества наставников. Учитывает план найма, сменность, отпуска, сложные участки и пиковые нагрузки.
+                </p>
+                <div class="action-link text-success">
+                    Открыть калькулятор <i class="bi bi-arrow-right"></i>
                 </div>
-            </div>
-
+            </a>
         </div>
     </div>
 </div>

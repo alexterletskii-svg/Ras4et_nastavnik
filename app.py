@@ -80,7 +80,30 @@ def find_header_row(df_raw, required_cols):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    conn = get_db_connection()
+
+    # Собираем сводную статистику для главной страницы
+    active_mentors = conn.execute("SELECT COUNT(*) FROM mentors WHERE is_active = 1").fetchone()[0] or 0
+    total_staff = conn.execute("SELECT COUNT(*) FROM employees").fetchone()[0] or 0
+    planned_hiring = conn.execute("SELECT SUM(headcount_change) FROM org_events WHERE headcount_change > 0").fetchone()[
+                         0] or 0
+    dismissed = conn.execute(
+        "SELECT COUNT(DISTINCT m.emp_code) FROM mentors m JOIN dismissals dis ON m.emp_code = dis.emp_code").fetchone()[
+                    0] or 0
+
+    conn.close()
+
+    coverage = round((active_mentors / total_staff * 100), 1) if total_staff > 0 else 0
+
+    stats = {
+        'active_mentors': active_mentors,
+        'total_staff': total_staff,
+        'coverage': coverage,
+        'planned_hiring': int(planned_hiring),
+        'dismissed': dismissed
+    }
+
+    return render_template('index.html', stats=stats)
 
 
 @app.route('/mentors')
@@ -344,20 +367,26 @@ def upload_file():
 @app.route('/calculator')
 def calculator():
     conn = get_db_connection()
+    # Добавили подсчет org_events_sum
     shops_data = conn.execute('''
         SELECT 
             sh.id, 
             sh.name, 
-            COUNT(m.id) as mentors_count
+            (SELECT COUNT(id) FROM mentors WHERE shop_id = sh.id AND is_active = 1) as mentors_count,
+            (SELECT IFNULL(SUM(headcount_change), 0) FROM org_events WHERE shop_id = sh.id) as org_events_sum
         FROM shops sh
-        LEFT JOIN mentors m ON sh.id = m.shop_id AND m.is_active = 1
-        GROUP BY sh.id
         ORDER BY sh.name
     ''').fetchall()
     conn.close()
 
-    shops = [{'id': row['id'], 'name': row['name'], 'mentors_count': row['mentors_count']} for row in shops_data]
+    shops = [{
+        'id': row['id'],
+        'name': row['name'],
+        'mentors_count': row['mentors_count'],
+        'org_events_sum': row['org_events_sum']
+    } for row in shops_data]
     return render_template('calculator.html', shops=shops)
+
 
 
 if __name__ == '__main__':

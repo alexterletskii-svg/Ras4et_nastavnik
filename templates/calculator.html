@@ -2,108 +2,109 @@
 
 {% block content %}
 <style>
-    :root {
-        --primary: #0d6efd; --primary-hover: #0b5ed7;
-        --card-bg: #ffffff; --text-main: #0f172a; --text-muted: #64748b;
-        --border: #e2e8f0; --danger: #ef4444; --success: #10b981;
-        --warning: #f59e0b; --purple: #8b5cf6;
+    body { background-color: #f4f7fa; }
+    .dash-card {
+        border: none; border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        background: #fff; margin-bottom: 20px;
     }
-
-    .btn-method {
-        background: white; color: var(--primary);
-        border: 2px solid var(--primary); border-radius: 8px;
-        padding: 8px 16px; font-size: 14px; font-weight: 600;
-        cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    .color-card {
+        border-radius: 12px; color: #fff; padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); height: 100%;
+        display: flex; flex-direction: column; justify-content: space-between;
     }
-    .btn-method:hover { background: var(--primary); color: white; }
+    .bg-blue-custom { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .bg-green-custom { background: linear-gradient(135deg, #10b981, #059669); }
+    .bg-red-custom { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .bg-gray-custom { background: linear-gradient(135deg, #64748b, #475569); }
 
-    .dashboard-grid { display: grid; grid-template-columns: 400px 1fr; gap: 24px; }
-    @media (max-width: 992px) { .dashboard-grid { grid-template-columns: 1fr; } }
+    .big-number { font-size: 2.5rem; font-weight: 700; line-height: 1; margin-top: 10px; }
 
-    .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; margin: 20px 0 15px 0; display: flex; align-items: center; gap: 10px; }
+    .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; margin: 20px 0 15px 0; display: flex; align-items: center; gap: 10px; }
     .section-title:first-child { margin-top: 0; }
-    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
 
-    .control-group { margin-bottom: 15px; background: #f8fafc; padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border); }
+    .control-group { margin-bottom: 15px; background: #f8fafc; padding: 12px 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
     .control-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .control-header label { font-size: 13px; font-weight: 600; color: #334155; margin: 0; }
-    .value-badge { font-size: 13px; font-weight: 700; color: var(--primary); background: white; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); }
+    .value-badge { font-size: 13px; font-weight: 700; color: #3b82f6; background: white; padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; }
 
     input[type="range"] { width: 100%; height: 6px; background: #cbd5e1; border-radius: 4px; outline: none; -webkit-appearance: none; margin-top: 5px; }
-    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--primary); border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 
-    .toggle-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; }
+    .toggle-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; }
     .toggle-row:hover { background: #f1f5f9; }
     .toggle-row.active { background: #eff6ff; border-color: #bfdbfe; }
     .toggle-switch { position: relative; width: 34px; height: 20px; flex-shrink: 0; margin-top: 2px; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 20px; }
     .toggle-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; }
-    .toggle-switch input:checked + .toggle-slider { background-color: var(--primary); }
+    .toggle-switch input:checked + .toggle-slider { background-color: #3b82f6; }
     .toggle-switch input:checked + .toggle-slider:before { transform: translateX(14px); }
     .toggle-label { font-size: 13px; font-weight: 600; color: #334155; }
-    .toggle-hint { font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.3; }
 
     .sub-control { margin: 0 0 10px 46px; padding: 10px 12px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; }
     .sub-control.hidden { display: none; }
 
     .radio-group { display: flex; gap: 8px; margin-top: 8px; }
-    .radio-group label { flex: 1; padding: 6px 10px; text-align: center; font-size: 12px; font-weight: 600; color: #475569; background: white; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; margin: 0; }
+    .radio-group label { flex: 1; padding: 6px 10px; text-align: center; font-size: 12px; font-weight: 600; color: #475569; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; margin: 0; }
     .radio-group input { display: none; }
-    .radio-group label:has(input:checked) { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+    .radio-group label:has(input:checked) { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; }
 
-    .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-    .metric-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 15px; text-align: center; }
-    .metric-card.primary { background: var(--primary); color: white; border: none; }
-    .metric-title { font-size: 11px; font-weight: 600; opacity: 0.85; margin-bottom: 5px; text-transform: uppercase; }
-    .metric-value { font-size: 32px; font-weight: 700; line-height: 1; margin: 10px 0; }
-    .metric-sub { font-size: 11px; opacity: 0.9; }
-
-    .formula-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #334155; margin-bottom: 15px; line-height: 1.6; }
-    .chart-container { height: 280px; width: 100%; margin-top: 20px; }
+    .chart-container { height: 320px; width: 100%; position: relative; }
+    .formula-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #334155; margin-bottom: 15px; line-height: 1.6; border: 1px solid #e2e8f0; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="h3 mb-0 text-gray-800">Калькулятор потребности</h2>
-    <button class="btn-method" onclick="alert('Логика расчета описана в документации')">
+    <h2 class="h4 mb-0 fw-bold text-dark">Калькулятор потребности</h2>
+    <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="alert('Логика расчета описана в документации')">
         <i class="bi bi-info-circle me-1"></i> Как проходит расчёт
     </button>
 </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <div class="d-flex justify-content-between align-items-end mb-1">
-                    <label class="form-label text-muted small fw-bold mb-0">Выберите цех для расчета</label>
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="showZeroShops">
-                        <label class="form-check-label small text-muted" for="showZeroShops">Показать цеха без наставников</label>
-                    </div>
-                </div>
-                <select id="shopSelect" class="form-select select2" data-placeholder="Начните вводить название цеха...">
-                </select>
+<!-- ВЫБОР ЦЕХА -->
+<div class="dash-card p-4 mb-4 border-start border-primary border-4">
+    <div class="row align-items-center g-3">
+        <div class="col-md-8">
+            <label class="form-label text-muted small fw-bold mb-1">Выберите цех для расчета</label>
+            <select id="shopSelect" class="form-select select2" data-placeholder="Начните вводить название цеха..."></select>
+            <div class="form-check mt-2 mb-0">
+                <input class="form-check-input" type="checkbox" id="showZeroShops">
+                <label class="form-check-label small text-muted" for="showZeroShops">Показать цеха без наставников</label>
             </div>
-            <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                <div class="text-muted small fw-bold">Текущее количество наставников в цехе:</div>
-                <div class="h2 mb-0 fw-bold text-dark" id="currentMentorsDisplay">-</div>
-            </div>
+        </div>
+        <div class="col-md-4 text-md-end border-start">
+            <div class="text-muted small fw-bold">Текущий штат наставников:</div>
+            <div class="fs-1 fw-bold text-dark" id="currentMentorsDisplay">-</div>
         </div>
     </div>
 </div>
 
-<div class="dashboard-grid">
-    <div class="card shadow-sm">
-        <div class="card-body">
+<div class="row g-4">
+    <!-- ЛЕВАЯ КОЛОНКА: ПАРАМЕТРЫ (Оригинальные) -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="dash-card p-4 h-100">
             <div class="section-title">Входящий поток и обучение</div>
 
-            <div class="control-group" style="border-left: 4px solid var(--purple);">
+            <div class="control-group" style="border-left: 4px solid #8b5cf6;">
+                <!-- Блок источника данных -->
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label text-muted small fw-bold mb-0">Источник данных</label>
+                        <span class="badge bg-blue-custom text-white shadow-sm" id="dbPlanDisplay" title="План найма по орг. мероприятиям из базы данных">По БД: -</span>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="useDbDataToggle" checked>
+                        <label class="form-check-label small fw-semibold text-dark" for="useDbDataToggle">Использовать план из БД</label>
+                    </div>
+                </div>
+
                 <div class="control-header">
                     <label>План новых учеников на ГОД</label>
                 </div>
-                <input type="number" id="input_V_year" class="form-control form-control-sm mb-2" value="60" min="1" oninput="calculate()">
+                <input type="number" id="input_V_year" class="form-control mb-2 fw-bold text-primary" value="0" min="0" oninput="calculate()" readonly>
                 <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
-                    В среднем в месяц: <b id="val_V_month" style="color: var(--purple);">5.0</b> чел.
+                    В среднем в месяц: <b id="val_V_month" style="color: #8b5cf6;">0.0</b> чел.
                 </div>
                 <div class="radio-group">
                     <label><input type="radio" name="V_mode" value="total" checked onchange="calculate()">Всего по цеху</label>
@@ -111,10 +112,10 @@
                 </div>
             </div>
 
-            <div class="control-group" style="border-left: 4px solid var(--purple);">
+            <div class="control-group" style="border-left: 4px solid #8b5cf6;">
                 <div class="control-header">
                     <label>Срок адаптации (мес)</label>
-                    <span class="value-badge" style="color: var(--purple);" id="val_d">1.5</span>
+                    <span class="value-badge" style="color: #8b5cf6;" id="val_d">1.5</span>
                 </div>
                 <input type="range" id="input_d" min="0.25" max="6" step="0.25" value="1.5" oninput="calculate()">
             </div>
@@ -129,158 +130,134 @@
                 <input type="range" id="input_C" min="1" max="5" value="2" oninput="calculate()">
             </div>
 
-            <div class="control-group" style="border-left: 4px solid var(--warning);">
+            <div class="control-group" style="border-left: 4px solid #f59e0b;">
                 <div class="control-header">
                     <label>Сменность цеха (смен/сутки)</label>
-                    <span class="value-badge" style="color: var(--warning);" id="val_k">1</span>
+                    <span class="value-badge" style="color: #f59e0b;" id="val_k">1</span>
                 </div>
                 <input type="range" id="input_k" min="1" max="4" step="1" value="1" oninput="calculate()">
             </div>
 
             <label class="toggle-row" id="row_roundPerShift">
-                <span class="toggle-switch">
-                    <input type="checkbox" id="input_roundPerShift" checked onchange="calculate()">
-                    <span class="toggle-slider"></span>
-                </span>
-                <span>
-                    <div class="toggle-label">Округлять по сменам</div>
-                    <div class="toggle-hint">Наставник не делится между сменами</div>
-                </span>
+                <span class="toggle-switch"><input type="checkbox" id="input_roundPerShift" checked onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Округлять по сменам<br><small class="text-muted fw-normal">Наставник не делится между сменами</small></span>
             </label>
 
             <div class="section-title">Резервы и поправки</div>
 
             <label class="toggle-row" id="row_alpha">
-                <span class="toggle-switch">
-                    <input type="checkbox" id="input_useAlpha" checked onchange="calculate()">
-                    <span class="toggle-slider"></span>
-                </span>
-                <span>
-                    <div class="toggle-label">Отсутствия наставников (α)</div>
-                </span>
+                <span class="toggle-switch"><input type="checkbox" id="input_useAlpha" checked onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Отсутствия наставников (α)</span>
             </label>
             <div class="sub-control" id="sub_alpha">
-                <div class="control-header">
-                    <label style="font-size: 12px;">Доля отсутствия</label>
-                    <span class="value-badge" style="color: var(--danger);" id="val_alpha">10%</span>
-                </div>
+                <div class="control-header"><label style="font-size: 12px;">Доля отсутствия</label><span class="value-badge text-danger" id="val_alpha">10%</span></div>
                 <input type="range" id="input_alpha" min="0" max="40" step="1" value="10" oninput="calculate()">
             </div>
 
             <label class="toggle-row" id="row_beta">
-                <span class="toggle-switch">
-                    <input type="checkbox" id="input_useBeta" onchange="calculate()">
-                    <span class="toggle-slider"></span>
-                </span>
-                <span>
-                    <div class="toggle-label">Отсутствия учеников (β)</div>
-                </span>
+                <span class="toggle-switch"><input type="checkbox" id="input_useBeta" onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Отсутствия учеников (β)</span>
             </label>
             <div class="sub-control hidden" id="sub_beta">
-                <div class="control-header">
-                    <label style="font-size: 12px;">Доля отсутствия</label>
-                    <span class="value-badge" style="color: var(--danger);" id="val_beta">10%</span>
-                </div>
+                <div class="control-header"><label style="font-size: 12px;">Доля отсутствия</label><span class="value-badge text-danger" id="val_beta">10%</span></div>
                 <input type="range" id="input_beta" min="0" max="40" step="1" value="10" oninput="calculate()">
             </div>
 
             <label class="toggle-row" id="row_gamma">
-                <span class="toggle-switch">
-                    <input type="checkbox" id="input_useGamma" onchange="calculate()">
-                    <span class="toggle-slider"></span>
-                </span>
-                <span>
-                    <div class="toggle-label">Неполная занятость (γ)</div>
-                </span>
+                <span class="toggle-switch"><input type="checkbox" id="input_useGamma" onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Неполная занятость (γ)</span>
             </label>
             <div class="sub-control hidden" id="sub_gamma">
-                <div class="control-header">
-                    <label style="font-size: 12px;">Время на наставничество</label>
-                    <span class="value-badge" style="color: var(--purple);" id="val_gamma">70%</span>
-                </div>
+                <div class="control-header"><label style="font-size: 12px;">Время на наставничество</label><span class="value-badge text-primary" id="val_gamma">70%</span></div>
                 <input type="range" id="input_gamma" min="20" max="100" step="5" value="70" oninput="calculate()">
             </div>
 
+            <!-- ВОЗВРАЩЕНО: Сложные участки -->
             <label class="toggle-row" id="row_hard">
-                <span class="toggle-switch">
-                    <input type="checkbox" id="input_useHard" onchange="calculate()">
-                    <span class="toggle-slider"></span>
-                </span>
-                <span>
-                    <div class="toggle-label">Сложные участки (1:1)</div>
-                </span>
+                <span class="toggle-switch"><input type="checkbox" id="input_useHard" onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Сложные участки (1:1)</span>
             </label>
             <div class="sub-control hidden" id="sub_hard">
-                <div class="control-header">
-                    <label style="font-size: 12px;">Доля сложных участков</label>
-                    <span class="value-badge" style="color: var(--danger);" id="val_hard">30%</span>
-                </div>
+                <div class="control-header"><label style="font-size: 12px;">Доля сложных участков</label><span class="value-badge text-danger" id="val_hard">30%</span></div>
                 <input type="range" id="input_hard" min="0" max="100" step="5" value="30" oninput="calculate()">
             </div>
 
+            <!-- ВОЗВРАЩЕНО: Пиковая нагрузка -->
             <label class="toggle-row" id="row_peak">
-                <span class="toggle-switch">
-                    <input type="checkbox" id="input_usePeak" onchange="calculate()">
-                    <span class="toggle-slider"></span>
-                </span>
-                <span>
-                    <div class="toggle-label">Пиковая нагрузка</div>
-                </span>
+                <span class="toggle-switch"><input type="checkbox" id="input_usePeak" onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Пиковая нагрузка</span>
             </label>
             <div class="sub-control hidden" id="sub_peak">
-                <div class="control-header">
-                    <label style="font-size: 12px;">Коэффициент пика</label>
-                    <span class="value-badge" style="color: var(--warning);" id="val_peak">1.30×</span>
-                </div>
+                <div class="control-header"><label style="font-size: 12px;">Коэффициент пика</label><span class="value-badge text-warning" id="val_peak">1.30×</span></div>
                 <input type="range" id="input_peak" min="100" max="200" step="5" value="130" oninput="calculate()">
             </div>
         </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
+    <!-- ПРАВАЯ КОЛОНКА: РЕЗУЛЬТАТЫ И ГРАФИКИ -->
+    <div class="col-xl-8 col-lg-7 d-flex flex-column gap-4">
 
-            <div class="results-grid">
-                <div class="metric-card primary">
-                    <div class="metric-title">Потребность</div>
-                    <div class="metric-value" id="res_mentors_count">0</div>
-                    <div class="metric-sub">С учётом параметров</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Активных учеников</div>
-                    <div class="metric-value text-dark" id="res_active_trainees">0</div>
-                    <div class="metric-sub">Среднее в моменте</div>
-                </div>
-                <div class="metric-card" id="diffCard">
-                    <div class="metric-title">Статус штата</div>
-                    <div class="metric-value" id="res_diff">-</div>
-                    <div class="metric-sub" id="res_diff_sub">Выберите цех</div>
+        <!-- 3 Цветные плашки с результатами -->
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="color-card bg-blue-custom">
+                    <h6 class="mb-0 opacity-75">Расчетная потребность</h6>
+                    <div class="big-number" id="res_mentors_count">0</div>
+                    <div class="small opacity-100 mt-2 fw-semibold">С учётом всех параметров</div>
                 </div>
             </div>
+            <div class="col-md-4">
+                <div class="color-card bg-gray-custom" id="statusCard">
+                    <h6 class="mb-0 opacity-75">Статус укомплектованности</h6>
+                    <div class="big-number" id="res_diff">-</div>
+                    <div class="small opacity-100 mt-2 fw-semibold" id="res_diff_sub">Выберите цех</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="color-card" style="background: #fff; color: #1e293b; border: 1px solid #e2e8f0;">
+                    <h6 class="mb-0 text-muted">Активных учеников</h6>
+                    <div class="big-number text-dark" id="res_active_trainees">0</div>
+                    <div class="small text-muted mt-2 fw-semibold">В среднем единовременно</div>
+                </div>
+            </div>
+        </div>
 
-            <details class="mb-3">
-                <summary class="text-muted small fw-bold" style="cursor: pointer;">▸ Показать числовой расчёт по шагам</summary>
-                <div class="formula-box mt-2" id="formula_box"></div>
-            </details>
+        <!-- Подробная формула -->
+        <details class="dash-card p-3 mb-0">
+            <summary class="text-muted small fw-bold" style="cursor: pointer; outline: none;">▸ Показать числовой расчёт по шагам</summary>
+            <div class="formula-box mt-3 mb-0" id="formula_box"></div>
+        </details>
 
+        <!-- Графики -->
+        <div class="dash-card p-4 flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="text-dark fw-bold mb-0">Визуализация расчета</h6>
+                <select id="chartTypeSelect" class="form-select form-select-sm w-auto border-0 bg-light text-muted fw-semibold" onchange="updateChartType()">
+                    <option value="bar" selected>Гистограмма (Накопление)</option>
+                    <option value="doughnut">Кольцо (Структура резервов)</option>
+                </select>
+            </div>
             <div class="chart-container">
                 <canvas id="mainChart"></canvas>
             </div>
-
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!--Скачать библиотеку-->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     let myChart;
     const allShops = [
         {% for shop in shops %}
-        { id: "{{ shop.id }}", name: "{{ shop.name }}", mentors_count: {{ shop.mentors_count }} },
+        {
+            id: "{{ shop.id }}",
+            name: "{{ shop.name }}",
+            mentors_count: {{ shop.mentors_count }},
+            org_events_sum: {{ shop.org_events_sum }}
+        },
         {% endfor %}
     ];
 
@@ -289,17 +266,17 @@
         const $select = $('#shopSelect');
         const currentValue = $select.val();
 
-        $select.empty(); // Очищаем список
+        $select.empty();
         $select.append('<option value=""></option>');
 
         allShops.forEach(shop => {
             if (showZero || shop.mentors_count > 0) {
                 const option = new Option(shop.name, shop.id, false, false);
                 $(option).attr('data-mentors', shop.mentors_count);
+                $(option).attr('data-org', shop.org_events_sum);
                 $select.append(option);
             }
         });
-
 
         if ($select.find(`option[value="${currentValue}"]`).length > 0) {
             $select.val(currentValue);
@@ -307,59 +284,96 @@
             $select.val(null);
             $('#currentMentorsDisplay').text('-');
         }
-
         $select.trigger('change.select2');
+        syncDbData();
+    }
+
+    function syncDbData() {
+        const useDb = $('#useDbDataToggle').is(':checked');
+        const $input = $('#input_V_year');
+        const selected = $('#shopSelect').find('option:selected');
+
+        let orgPlan = 0;
+        if (selected.val()) {
+            orgPlan = parseFloat(selected.data('org')) || 0;
+            if (orgPlan < 0) orgPlan = 0;
+            $('#dbPlanDisplay').text(`По БД: ${orgPlan} чел.`);
+        } else {
+            $('#dbPlanDisplay').text(`По БД: -`);
+        }
+
+        if (useDb) {
+            $input.prop('readonly', true).addClass('bg-light');
+            $input.val(orgPlan);
+        } else {
+            $input.prop('readonly', false).removeClass('bg-light');
+        }
         calculate();
     }
 
     $(document).ready(function() {
-        $('#shopSelect').select2({
-            theme: 'bootstrap-5',
-            placeholder: $(this).data('placeholder'),
-            allowClear: true
-        }).on('change', function() {
-            const selected = $(this).find('option:selected');
-            if (selected.val()) {
-                const mentors = selected.data('mentors');
-                $('#currentMentorsDisplay').text(mentors);
-            } else {
-                $('#currentMentorsDisplay').text('-');
-            }
-            calculate();
-        });
+        $('#shopSelect').select2({ theme: 'bootstrap-5', placeholder: $(this).data('placeholder'), allowClear: true })
+            .on('change', function() {
+                const selected = $(this).find('option:selected');
+                $('#currentMentorsDisplay').text(selected.val() ? selected.data('mentors') : '-');
+                syncDbData();
+            });
 
         $('#showZeroShops').on('change', updateShopList);
+        $('#useDbDataToggle').on('change', syncDbData);
 
         updateShopList();
+        initChart('bar');
+    });
 
+    // Инициализация графика (теперь 6 датасетов, как в оригинале)
+    function initChart(type) {
+        if(myChart) myChart.destroy();
         const ctx = document.getElementById('mainChart').getContext('2d');
+
+        const options = {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: type === 'doughnut' ? 'right' : 'bottom', labels: { font: { size: 11 } } } }
+        };
+
+        if (type === 'bar') {
+            options.scales = {
+                y: { stacked: true, beginAtZero: true, grid: { borderDash: [2, 4] } },
+                x: { stacked: true, grid: { display: false } }
+            };
+        }
+
+        const labels = type === 'bar' ? ['Структура итоговой потребности'] :
+            ['База', 'Сложные участки (h)', 'Отсутствия учеников (β)', 'Неполная занятость (γ)', 'Отсутствия наставников (α)', 'Пиковая нагрузка'];
+
         myChart = new Chart(ctx, {
-            type: 'bar',
+            type: type,
             data: {
-                labels: ['Структура итоговой потребности'],
-                datasets: [
+                labels: labels,
+                datasets: type === 'bar' ? [
                     { label: 'База (без резервов)',        data: [0], backgroundColor: '#3b82f6', borderRadius: 4 },
                     { label: 'Сложные участки (h)',        data: [0], backgroundColor: '#ec4899', borderRadius: 4 },
                     { label: 'Отсутствия учеников (β)',    data: [0], backgroundColor: '#f97316', borderRadius: 4 },
                     { label: 'Неполная занятость (γ)',     data: [0], backgroundColor: '#8b5cf6', borderRadius: 4 },
                     { label: 'Отсутствия наставников (α)', data: [0], backgroundColor: '#ef4444', borderRadius: 4 },
                     { label: 'Пиковая нагрузка',           data: [0], backgroundColor: '#f59e0b', borderRadius: 4 }
-                ]
+                ] : [{
+                    data: [0, 0, 0, 0, 0, 0],
+                    backgroundColor: ['#3b82f6', '#ec4899', '#f97316', '#8b5cf6', '#ef4444', '#f59e0b'],
+                    borderWidth: 2, borderColor: '#fff'
+                }]
             },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
-                },
-                scales: {
-                    y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' } },
-                    x: { stacked: true, grid: { display: false } }
-                }
-            }
+            options: options
         });
-    });
+    }
+
+    function updateChartType() {
+        initChart($('#chartTypeSelect').val());
+        calculate();
+    }
 
     function syncToggleRows() {
+        // Вернули все 5 параметров
         const pairs = [
             ['input_useAlpha', 'sub_alpha', 'row_alpha'],
             ['input_useBeta',  'sub_beta',  'row_beta'],
@@ -372,16 +386,16 @@
             document.getElementById(sub).classList.toggle('hidden', !on);
             document.getElementById(row).classList.toggle('active', on);
         });
-        document.getElementById('row_roundPerShift').classList.toggle(
-            'active', document.getElementById('input_roundPerShift').checked);
+        document.getElementById('row_roundPerShift').classList.toggle('active', document.getElementById('input_roundPerShift').checked);
     }
 
+    // ОРИГИНАЛЬНАЯ ПОЛНАЯ ФУНКЦИЯ РАСЧЕТА
     function calculate() {
         syncToggleRows();
 
         const V_year = parseFloat(document.getElementById('input_V_year').value) || 0;
-        const V = V_year / 12; // Перевод плана на год в поток в месяц
-        
+        const V = V_year / 12;
+
         const d = parseFloat(document.getElementById('input_d').value);
         const C = parseFloat(document.getElementById('input_C').value);
         const k = parseFloat(document.getElementById('input_k').value);
@@ -415,6 +429,8 @@
 
         const active_per_shift = V_per_shift * d;
         const active_total     = V_total * d;
+
+        // ОРИГИНАЛЬНАЯ МАТЕМАТИКА
         const C_eff = C / (h * C + (1 - h));
         const trainee_inflation = 1 / (1 - beta);
 
@@ -432,50 +448,64 @@
         document.getElementById('res_mentors_count').innerText = final_mentors;
         document.getElementById('res_active_trainees').innerText = active_total.toFixed(1);
 
+        // Обновление статуса
         const selectedShop = $('#shopSelect').find('option:selected');
+        const statusCard = document.getElementById('statusCard');
         const diffEl = document.getElementById('res_diff');
         const diffSubEl = document.getElementById('res_diff_sub');
-        
+
         if (selectedShop.val()) {
             const currentMentors = parseInt(selectedShop.data('mentors')) || 0;
             const diff = currentMentors - final_mentors;
-            
+
             if (diff < 0) {
                 diffEl.innerText = diff;
-                diffEl.style.color = 'var(--danger)';
-                diffSubEl.innerText = 'Не хватает наставников';
+                statusCard.className = 'color-card bg-red-custom';
+                diffSubEl.innerText = 'Дефицит наставников';
             } else if (diff > 0) {
                 diffEl.innerText = '+' + diff;
-                diffEl.style.color = 'var(--success)';
+                statusCard.className = 'color-card bg-green-custom';
                 diffSubEl.innerText = 'Профицит наставников';
             } else {
                 diffEl.innerText = '0';
-                diffEl.style.color = 'var(--text-main)';
+                statusCard.className = 'color-card bg-gray-custom';
                 diffSubEl.innerText = 'Штат укомплектован идеально';
             }
         } else {
             diffEl.innerText = '-';
-            diffEl.style.color = 'var(--text-main)';
+            statusCard.className = 'color-card bg-gray-custom';
             diffSubEl.innerText = 'Выберите цех';
         }
 
+        // Обновление формулы
         const lines = [
             `V = ${V.toFixed(2)} чел/мес`,
             `Активных учеников: <b>${active_total.toFixed(2)}</b>`,
             `База на смену: <b>${step0.toFixed(2)}</b>`,
             `Итого на смену (с резервами): <b>${step5.toFixed(2)}</b>`,
-            `Итого потребность: <b>${final_mentors}</b>`
+            `Итого потребность: <b class="text-primary fs-6">${final_mentors}</b>`
         ];
         document.getElementById('formula_box').innerHTML = lines.join('<br>');
 
-
+        // Обновление графика (6 шагов)
         if(myChart) {
-            myChart.data.datasets[0].data = [step0 * k];
-            myChart.data.datasets[1].data = [Math.max(0, step1 - step0) * k];
-            myChart.data.datasets[2].data = [Math.max(0, step2 - step1) * k];
-            myChart.data.datasets[3].data = [Math.max(0, step3 - step2) * k];
-            myChart.data.datasets[4].data = [Math.max(0, step4 - step3) * k];
-            myChart.data.datasets[5].data = [Math.max(0, step5 - step4) * k];
+            const v0 = step0 * k;
+            const v1 = Math.max(0, step1 - step0) * k;
+            const v2 = Math.max(0, step2 - step1) * k;
+            const v3 = Math.max(0, step3 - step2) * k;
+            const v4 = Math.max(0, step4 - step3) * k;
+            const v5 = Math.max(0, step5 - step4) * k;
+
+            if ($('#chartTypeSelect').val() === 'bar') {
+                myChart.data.datasets[0].data = [v0];
+                myChart.data.datasets[1].data = [v1];
+                myChart.data.datasets[2].data = [v2];
+                myChart.data.datasets[3].data = [v3];
+                myChart.data.datasets[4].data = [v4];
+                myChart.data.datasets[5].data = [v5];
+            } else {
+                myChart.data.datasets[0].data = [v0, v1, v2, v3, v4, v5];
+            }
             myChart.update();
         }
     }

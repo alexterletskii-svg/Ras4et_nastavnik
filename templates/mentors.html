@@ -96,7 +96,7 @@
     {% set total_emp = data | sum(attribute='employees_count') %}
     {% set total_org = data | sum(attribute='org_events_sum') %}
 
-    <!-- 1 ЭТАЖ: 3 ЦВЕТНЫЕ ПЛАШКИ (ПЕРЕНЕСЕНЫ НАВЕРХ) -->
+    <!-- 1 ЭТАЖ: 3 ЦВЕТНЫЕ ПЛАШКИ -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <div class="color-card bg-green-custom">
@@ -173,7 +173,8 @@
                 </div>
 
                 <div class="chart-container-scroll">
-                    <div id="mainChartContainer" style="position: relative; height: 300px; width: 100%;">
+                    <!-- Увеличили высоту до 350px -->
+                    <div id="mainChartContainer" style="position: relative; height: 350px; width: 100%;">
                         <canvas id="mainBarChart"></canvas>
                     </div>
                 </div>
@@ -198,7 +199,8 @@
                     <option value="org">Показать: План (орг. мер.)</option>
                 </select>
 
-                <div style="position: relative; height: 260px; width: 100%;">
+                <!-- Увеличили высоту до 350px -->
+                <div style="position: relative; height: 350px; width: 100%;">
                     <canvas id="donutChart"></canvas>
                 </div>
             </div>
@@ -282,7 +284,7 @@
 
         const labels = Object.keys(aggregated);
 
-        // Формируем датасеты на основе выбранных чекбоксов
+        // Формируем датасеты
         const datasets = selectedMetrics.map(metric => {
             return {
                 label: metricConfig[metric].label,
@@ -298,14 +300,13 @@
 
         if (barChartInstance) barChartInstance.destroy();
 
-        // Если выбраны цеха и гистограмма - делаем график горизонтальным и растягиваем
         const isHorizontal = (chartType === 'bar' && groupBy === 'shop_name');
         const chartContainer = document.getElementById('mainChartContainer');
 
         if (isHorizontal) {
-            chartContainer.style.height = Math.max(300, labels.length * 35) + 'px';
+            chartContainer.style.height = Math.max(350, labels.length * 35) + 'px';
         } else {
-            chartContainer.style.height = '300px';
+            chartContainer.style.height = '350px';
         }
 
         const ctx = document.getElementById('mainBarChart').getContext('2d');
@@ -338,7 +339,6 @@
             divisionData[div] += row[dataKey];
         });
 
-        // Убираем нулевые значения, чтобы не засорять график
         const sortedDivisions = Object.entries(divisionData).filter(([_, val]) => val !== 0).sort((a, b) => b[1] - a[1]);
         const labels = sortedDivisions.map(item => item[0]);
         const values = sortedDivisions.map(item => item[1]);
@@ -363,7 +363,15 @@
                 maintainAspectRatio: false,
                 cutout: chartType === 'doughnut' ? '65%' : '0%',
                 plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true, font: {size: 11} } }
+                    legend: {
+                        position: 'bottom', // ПЕРЕНЕСЛИ ЛЕГЕНДУ ВНИЗ
+                        labels: {
+                            boxWidth: 12,
+                            usePointStyle: true,
+                            font: {size: 11},
+                            padding: 15 // Добавили немного отступов между элементами
+                        }
+                    }
                 }
             }
         });
@@ -378,16 +386,10 @@
             dom: '<"d-flex justify-content-between align-items-center mb-3"f l>rt<"d-flex justify-content-between mt-3"i p>'
         });
 
-        // Слушатели событий
         $('.auto-submit').on('change', function() { $('#filterForm').submit(); });
-
-        // Перерисовка левого графика
         $('#chartGroupBy, #mainChartType, .main-metric-cb').on('change', function() { drawBarChart(); });
-
-        // Перерисовка правого графика
         $('#donutChartType, #donutChartMetric').on('change', function() { drawDonutChart(); });
 
-        // Инициализация
         drawBarChart();
         drawDonutChart();
     });

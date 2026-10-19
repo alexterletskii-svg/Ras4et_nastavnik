@@ -6,7 +6,7 @@ import json
 
 app = Flask(__name__)
 app.secret_key = '123456'
-DB_PATH = 'factory.bd'
+DB_PATH = 'factory.db'
 
 
 def get_db_connection():
@@ -16,10 +16,29 @@ def get_db_connection():
     return conn
 
 
-# --- НОВАЯ ФУНКЦИЯ СОЗДАНИЯ БД ---
+# --- НОВАЯ УМНАЯ ПРОВЕРКА БД ---
+def is_db_initialized():
+    """Проверяет, существует ли файл и есть ли в нем нужные таблицы."""
+    if not os.path.exists(DB_PATH):
+        return False
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Проверяем наличие главной таблицы sites
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sites';")
+        exists = cursor.fetchone() is not None
+        conn.close()
+        return exists
+    except:
+        return False
+
+
 def create_database_schema():
     if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
+        try:
+            os.remove(DB_PATH)
+        except PermissionError:
+            pass  # Если файл занят, просто пересоздадим таблицы поверх
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -176,7 +195,8 @@ def find_header_row(df_raw, required_cols):
 
 @app.route('/')
 def index():
-    if not os.path.exists(DB_PATH):
+    # Используем новую проверку
+    if not is_db_initialized():
         stats = {'active_mentors': 0, 'total_staff': 0, 'coverage': 0, 'planned_hiring': 0, 'dismissed': 0}
         return render_template('index.html', stats=stats)
 
@@ -208,7 +228,8 @@ def index():
 
 @app.route('/mentors')
 def mentors_data():
-    if not os.path.exists(DB_PATH):
+    # Используем новую проверку
+    if not is_db_initialized():
         return render_template('mentors.html', db_exists=False)
 
     conn = get_db_connection()
@@ -277,6 +298,10 @@ def mentors_data():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    if not is_db_initialized():
+        flash('Сначала инициализируйте базу данных!', 'danger')
+        return redirect(url_for('mentors_data'))
+
     conn = get_db_connection()
     cursor = conn.cursor()
     files_processed = 0
@@ -469,26 +494,35 @@ def upload_file():
 
 @app.route('/calculator')
 def calculator():
-    conn = get_db_connection()
-    # Добавили подсчет org_events_sum
-    shops_data = conn.execute('''
-        SELECT 
-            sh.id, 
-            sh.name, 
-            (SELECT COUNT(id) FROM mentors WHERE shop_id = sh.id AND is_active = 1) as mentors_count,
-            (SELECT IFNULL(SUM(headcount_change), 0) FROM org_events WHERE shop_id = sh.id) as org_events_sum
-        FROM shops sh
-        ORDER BY sh.name
-    ''').fetchall()
-    conn.close()
+    # Защита калькулятора
+    if not is_db_initialized():
+        flash('Для работы калькулятора необходимо сначала создать базу данных.', 'warning')
+        return redirect(url_for('mentors_data'))
 
-    shops = [{
-        'id': row['id'],
-        'name': row['name'],
-        'mentors_count': row['mentors_count'],
-        'org_events_sum': row['org_events_sum']
-    } for row in shops_data]
-    return render_template('calculator.html', shops=shops)
+    try:
+        conn = get_db_connection()
+        shops_data = conn.execute('''
+            SELECT 
+                sh.id, 
+                sh.name, 
+                (SELECT COUNT(id) FROM mentors WHERE shop_id = sh.id AND is_active = 1) as mentors_count,
+                (SELECT IFNULL(SUM(headcount_change), 0) FROM org_events WHERE shop_id = sh.id) as org_events_sum
+            FROM shops sh
+            ORDER BY sh.name
+        ''').fetchall()
+        conn.close()
+
+        shops = [{
+            'id': row['id'],
+            'name': row['name'],
+            'mentors_count': row['mentors_count'],
+            'org_events_sum': row['org_events_sum']
+        } for row in shops_data]
+        return render_template('calculator.html', shops=shops)
+
+    except sqlite3.OperationalError:
+        flash('Структура базы данных повреждена. Пожалуйста, пересоздайте её.', 'danger')
+        return redirect(url_for('mentors_data'))
 
 
 if __name__ == '__main__':

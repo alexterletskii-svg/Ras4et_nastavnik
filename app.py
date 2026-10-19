@@ -3,10 +3,23 @@ import sqlite3
 import pandas as pd
 from flask import Flask, render_template, request, redirect, flash, url_for
 import json
+import sys
+from flaskwebgui import FlaskUI
 
-app = Flask(__name__)
+
+
+if getattr(sys, 'frozen', False):
+    base_dir = os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__,
+            template_folder=os.path.join(base_dir, 'templates'),
+            static_folder=os.path.join(base_dir, 'static'))
+
 app.secret_key = '123456'
-DB_PATH = 'factory.db'
+
+DB_PATH = os.path.join(base_dir, 'factory.db')
 
 
 def get_db_connection():
@@ -510,5 +523,14 @@ def calculator():
         return redirect(url_for('mentors_data'))
 
 
+# if __name__ == '__main__':
+#     app.run(debug=True, port=5000)
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    FlaskUI(
+        app=app,
+        server="flask",
+        port=5000,
+        width=1200,
+        height=800
+    ).run()

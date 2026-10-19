@@ -52,14 +52,49 @@
     .radio-group label:has(input:checked) { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; }
 
     .chart-container { height: 320px; width: 100%; position: relative; }
-    .formula-box { background: #f1f5f9; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #334155; margin-bottom: 15px; line-height: 1.6; border: 1px solid #e2e8f0; }
+    .formula-box { background: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 13px; color: #334155; margin-bottom: 15px; line-height: 1.6; border: 1px solid #e2e8f0; }
+    .formula-step { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #cbd5e1; }
+    .formula-step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 mb-0 fw-bold text-dark">Калькулятор потребности</h2>
-    <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="alert('Логика расчета описана в документации')">
+    <button class="btn btn-outline-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#logicModal">
         <i class="bi bi-info-circle me-1"></i> Как проходит расчёт
     </button>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО С ОПИСАНИЕМ ЛОГИКИ -->
+<div class="modal fade" id="logicModal" tabindex="-1" aria-labelledby="logicModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold" id="logicModalLabel"><i class="bi bi-calculator me-2 text-primary"></i>Логика расчета потребности</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-dark" style="font-size: 0.95rem;">
+        <p>Расчет строится по принципу наслаивания резервов. Мы начинаем с идеальной ситуации и постепенно добавляем жизненные реалии.</p>
+
+        <h6 class="fw-bold mt-4 text-primary">1. Базовая потребность</h6>
+        <p>Сначала мы вычисляем, сколько учеников одновременно находится в цеху (План найма × Срок адаптации). Затем делим это число на вместимость одного наставника. Это наша "База".</p>
+
+        <h6 class="fw-bold mt-4 text-primary">2. Усложняющие факторы (Резервы)</h6>
+        <ul class="list-group list-group-flush mb-3">
+            <li class="list-group-item"><b>Сложные участки (h):</b> На некоторых рабочих местах нельзя обучать группу, только 1 на 1. Это снижает общую пропускную способность наставников.</li>
+            <li class="list-group-item"><b>Отсутствия учеников (β):</b> Ученики уходят на больничный или берут отгулы. Из-за этого срок их обучения растягивается, и они дольше занимают место у наставника.</li>
+            <li class="list-group-item"><b>Неполная занятость (γ):</b> Наставник не может тратить 100% времени на обучение, ему нужно выполнять и свои прямые обязанности.</li>
+            <li class="list-group-item"><b>Отсутствия наставников (α):</b> Сами наставники тоже ходят в отпуска и болеют. Нам нужны люди им на замену.</li>
+            <li class="list-group-item"><b>Пиковая нагрузка:</b> В месяцы массового найма потребность резко возрастает. Коэффициент пика защищает от нехватки рук в сезон.</li>
+        </ul>
+
+        <h6 class="fw-bold mt-4 text-primary">3. Текучесть кадров (t)</h6>
+        <p>Самый важный защитный механизм. Если мы знаем, что часть наставников уволится, мы закладываем резерв по формуле <code>Итог = Потребность / (1 - t)</code>. Это гарантирует, что даже после увольнений в цеху останется нужное количество людей.</p>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Понятно</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="dash-card p-4 mb-4 border-start border-primary border-4">
@@ -142,6 +177,16 @@
 
             <div class="section-title">Резервы и поправки</div>
 
+
+            <label class="toggle-row" id="row_turnover">
+                <span class="toggle-switch"><input type="checkbox" id="input_useTurnover" onchange="calculate()"><span class="toggle-slider"></span></span>
+                <span class="toggle-label">Текучесть кадров (t)</span>
+            </label>
+            <div class="sub-control hidden" id="sub_turnover">
+                <div class="control-header"><label style="font-size: 12px;">Доля текучести</label><span class="value-badge text-info" id="val_turnover">10%</span></div>
+                <input type="range" id="input_turnover" min="0" max="50" step="1" value="10" oninput="calculate()">
+            </div>
+
             <label class="toggle-row" id="row_alpha">
                 <span class="toggle-switch"><input type="checkbox" id="input_useAlpha" checked onchange="calculate()"><span class="toggle-slider"></span></span>
                 <span class="toggle-label">Отсутствия наставников (α)</span>
@@ -186,6 +231,9 @@
                 <div class="control-header"><label style="font-size: 12px;">Коэффициент пика</label><span class="value-badge text-warning" id="val_peak">1.30×</span></div>
                 <input type="range" id="input_peak" min="100" max="200" step="5" value="130" oninput="calculate()">
             </div>
+
+
+
         </div>
     </div>
 
@@ -334,7 +382,7 @@
         }
 
         const labels = type === 'bar' ? ['Структура итоговой потребности'] :
-            ['База', 'Сложные участки (h)', 'Отсутствия учеников (β)', 'Неполная занятость (γ)', 'Отсутствия наставников (α)', 'Пиковая нагрузка'];
+            ['База', 'Сложные участки (h)', 'Отсутствия учеников (β)', 'Неполная занятость (γ)', 'Отсутствия наставников (α)', 'Пиковая нагрузка', 'Текучесть кадров (t)'];
 
         myChart = new Chart(ctx, {
             type: type,
@@ -346,10 +394,11 @@
                     { label: 'Отсутствия учеников (β)',    data: [0], backgroundColor: '#f97316', borderRadius: 4 },
                     { label: 'Неполная занятость (γ)',     data: [0], backgroundColor: '#8b5cf6', borderRadius: 4 },
                     { label: 'Отсутствия наставников (α)', data: [0], backgroundColor: '#ef4444', borderRadius: 4 },
-                    { label: 'Пиковая нагрузка',           data: [0], backgroundColor: '#f59e0b', borderRadius: 4 }
+                    { label: 'Пиковая нагрузка',           data: [0], backgroundColor: '#f59e0b', borderRadius: 4 },
+                    { label: 'Текучесть кадров (t)',       data: [0], backgroundColor: '#06b6d4', borderRadius: 4 }
                 ] : [{
-                    data: [0, 0, 0, 0, 0, 0],
-                    backgroundColor: ['#3b82f6', '#ec4899', '#f97316', '#8b5cf6', '#ef4444', '#f59e0b'],
+                    data: [0, 0, 0, 0, 0, 0, 0],
+                    backgroundColor: ['#3b82f6', '#ec4899', '#f97316', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4'],
                     borderWidth: 2, borderColor: '#fff'
                 }]
             },
@@ -368,7 +417,8 @@
             ['input_useBeta',  'sub_beta',  'row_beta'],
             ['input_useGamma', 'sub_gamma', 'row_gamma'],
             ['input_useHard',  'sub_hard',  'row_hard'],
-            ['input_usePeak',  'sub_peak',  'row_peak']
+            ['input_usePeak',  'sub_peak',  'row_peak'],
+            ['input_useTurnover','sub_turnover','row_turnover']
         ];
         pairs.forEach(([inp, sub, row]) => {
             const on = document.getElementById(inp).checked;
@@ -399,6 +449,10 @@
         const h = useHard ? parseFloat(document.getElementById('input_hard').value) / 100 : 0;
         const usePeak = document.getElementById('input_usePeak').checked;
         const peak = usePeak ? parseFloat(document.getElementById('input_peak').value) / 100 : 1;
+
+        const useTurnover = document.getElementById('input_useTurnover').checked;
+        const turnover = useTurnover ? parseFloat(document.getElementById('input_turnover').value) / 100 : 0;
+
         const roundPerShift = document.getElementById('input_roundPerShift').checked;
 
         document.getElementById('val_V_month').innerText = V.toFixed(1);
@@ -410,6 +464,7 @@
         document.getElementById('val_gamma').innerText = (gamma * 100).toFixed(0) + '%';
         document.getElementById('val_hard').innerText  = (h     * 100).toFixed(0) + '%';
         document.getElementById('val_peak').innerText  = peak.toFixed(2) + '×';
+        document.getElementById('val_turnover').innerText = (turnover * 100).toFixed(0) + '%';
 
         let V_per_shift, V_total;
         if (V_mode === 'per_shift') { V_per_shift = V; V_total = V * k; }
@@ -427,10 +482,11 @@
         const step3 = step2 / gamma;
         const step4 = step3 / (1 - alpha);
         const step5 = step4 * peak;
+        const step6 = step5 / (1 - turnover);
 
         let final_mentors;
-        if (roundPerShift) final_mentors = Math.ceil(step5) * k;
-        else               final_mentors = Math.ceil(step5 * k);
+        if (roundPerShift) final_mentors = Math.ceil(step6) * k;
+        else               final_mentors = Math.ceil(step6 * k);
 
         document.getElementById('res_mentors_count').innerText = final_mentors;
         document.getElementById('res_active_trainees').innerText = active_total.toFixed(1);
@@ -463,14 +519,21 @@
             diffSubEl.innerText = 'Выберите цех';
         }
 
+        // ОБНОВЛЕННЫЙ БЛОК С ПОДРОБНЫМ ОПИСАНИЕМ ШАГОВ
         const lines = [
-            `V = ${V.toFixed(2)} чел/мес`,
-            `Активных учеников: <b>${active_total.toFixed(2)}</b>`,
-            `База на смену: <b>${step0.toFixed(2)}</b>`,
-            `Итого на смену (с резервами): <b>${step5.toFixed(2)}</b>`,
-            `Итого потребность: <b class="text-primary fs-6">${final_mentors}</b>`
+            `<div class="formula-step"><b>1. Входящий поток:</b> ${V.toFixed(2)} чел/мес. Умножаем на срок адаптации (${d} мес) = <b>${active_total.toFixed(2)}</b> активных учеников единовременно.</div>`,
+            `<div class="formula-step"><b>2. Идеальная база:</b> Делим учеников на вместимость наставника (${C}) = <b>${step0.toFixed(2)}</b> наставников на смену.</div>`,
+            `<div class="formula-step"><b>3. Сложные участки (h=${(h*100).toFixed(0)}%):</b> Снижаем пропускную способность. Потребность возрастает до <b>${step1.toFixed(2)}</b>.</div>`,
+            `<div class="formula-step"><b>4. Отсутствия учеников (β=${(beta*100).toFixed(0)}%):</b> Ученики болеют, обучение затягивается. Потребность: <b>${step2.toFixed(2)}</b>.</div>`,
+            `<div class="formula-step"><b>5. Неполная занятость (γ=${(gamma*100).toFixed(0)}%):</b> Наставник отвлекается на основную работу. Потребность: <b>${step3.toFixed(2)}</b>.</div>`,
+            `<div class="formula-step"><b>6. Отсутствия наставников (α=${(alpha*100).toFixed(0)}%):</b> Резерв на отпуска и больничные. Потребность: <b>${step4.toFixed(2)}</b>.</div>`,
+            `<div class="formula-step"><b>7. Пиковая нагрузка (×${peak.toFixed(2)}):</b> Запас на сезонный наплыв. Потребность: <b>${step5.toFixed(2)}</b>.</div>`,
+            `<div class="formula-step"><b>8. Текучесть кадров (t=${(turnover*100).toFixed(0)}%):</b> Запас на увольнения (Итог / (1 - t)). Потребность: <b>${step6.toFixed(2)}</b>.</div>`,
+            `<div class="mt-3 p-2 bg-white rounded border border-primary border-opacity-25">
+                <span class="fs-6"><b>Итого к найму:</b> Округляем и умножаем на количество смен (${k}) = <b class="text-primary fs-5">${final_mentors}</b> чел.</span>
+            </div>`
         ];
-        document.getElementById('formula_box').innerHTML = lines.join('<br>');
+        document.getElementById('formula_box').innerHTML = lines.join('');
 
         if(myChart) {
             const v0 = step0 * k;
@@ -479,6 +542,7 @@
             const v3 = Math.max(0, step3 - step2) * k;
             const v4 = Math.max(0, step4 - step3) * k;
             const v5 = Math.max(0, step5 - step4) * k;
+            const v6 = Math.max(0, step6 - step5) * k;
 
             if ($('#chartTypeSelect').val() === 'bar') {
                 myChart.data.datasets[0].data = [v0];
@@ -487,8 +551,9 @@
                 myChart.data.datasets[3].data = [v3];
                 myChart.data.datasets[4].data = [v4];
                 myChart.data.datasets[5].data = [v5];
+                myChart.data.datasets[6].data = [v6];
             } else {
-                myChart.data.datasets[0].data = [v0, v1, v2, v3, v4, v5];
+                myChart.data.datasets[0].data = [v0, v1, v2, v3, v4, v5, v6];
             }
             myChart.update();
         }

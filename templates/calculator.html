@@ -62,7 +62,6 @@
     </button>
 </div>
 
-<!-- ВЫБОР ЦЕХА -->
 <div class="dash-card p-4 mb-4 border-start border-primary border-4">
     <div class="row align-items-center g-3">
         <div class="col-md-8">
@@ -81,13 +80,11 @@
 </div>
 
 <div class="row g-4">
-    <!-- ЛЕВАЯ КОЛОНКА: ПАРАМЕТРЫ (Оригинальные) -->
     <div class="col-xl-4 col-lg-5">
         <div class="dash-card p-4 h-100">
             <div class="section-title">Входящий поток и обучение</div>
 
             <div class="control-group" style="border-left: 4px solid #8b5cf6;">
-                <!-- Блок источника данных -->
                 <div class="mb-3 pb-3 border-bottom">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label text-muted small fw-bold mb-0">Источник данных</label>
@@ -172,7 +169,6 @@
                 <input type="range" id="input_gamma" min="20" max="100" step="5" value="70" oninput="calculate()">
             </div>
 
-            <!-- ВОЗВРАЩЕНО: Сложные участки -->
             <label class="toggle-row" id="row_hard">
                 <span class="toggle-switch"><input type="checkbox" id="input_useHard" onchange="calculate()"><span class="toggle-slider"></span></span>
                 <span class="toggle-label">Сложные участки (1:1)</span>
@@ -182,7 +178,6 @@
                 <input type="range" id="input_hard" min="0" max="100" step="5" value="30" oninput="calculate()">
             </div>
 
-            <!-- ВОЗВРАЩЕНО: Пиковая нагрузка -->
             <label class="toggle-row" id="row_peak">
                 <span class="toggle-switch"><input type="checkbox" id="input_usePeak" onchange="calculate()"><span class="toggle-slider"></span></span>
                 <span class="toggle-label">Пиковая нагрузка</span>
@@ -194,10 +189,8 @@
         </div>
     </div>
 
-    <!-- ПРАВАЯ КОЛОНКА: РЕЗУЛЬТАТЫ И ГРАФИКИ -->
     <div class="col-xl-8 col-lg-7 d-flex flex-column gap-4">
 
-        <!-- 3 Цветные плашки с результатами -->
         <div class="row g-3">
             <div class="col-md-4">
                 <div class="color-card bg-blue-custom">
@@ -222,13 +215,11 @@
             </div>
         </div>
 
-        <!-- Подробная формула -->
         <details class="dash-card p-3 mb-0">
             <summary class="text-muted small fw-bold" style="cursor: pointer; outline: none;">▸ Показать числовой расчёт по шагам</summary>
             <div class="formula-box mt-3 mb-0" id="formula_box"></div>
         </details>
 
-        <!-- Графики -->
         <div class="dash-card p-4 flex-grow-1">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h6 class="text-dark fw-bold mb-0">Визуализация расчета</h6>
@@ -326,7 +317,6 @@
         initChart('bar');
     });
 
-    // Инициализация графика (теперь 6 датасетов, как в оригинале)
     function initChart(type) {
         if(myChart) myChart.destroy();
         const ctx = document.getElementById('mainChart').getContext('2d');
@@ -373,7 +363,6 @@
     }
 
     function syncToggleRows() {
-        // Вернули все 5 параметров
         const pairs = [
             ['input_useAlpha', 'sub_alpha', 'row_alpha'],
             ['input_useBeta',  'sub_beta',  'row_beta'],
@@ -389,7 +378,6 @@
         document.getElementById('row_roundPerShift').classList.toggle('active', document.getElementById('input_roundPerShift').checked);
     }
 
-    // ОРИГИНАЛЬНАЯ ПОЛНАЯ ФУНКЦИЯ РАСЧЕТА
     function calculate() {
         syncToggleRows();
 
@@ -430,7 +418,6 @@
         const active_per_shift = V_per_shift * d;
         const active_total     = V_total * d;
 
-        // ОРИГИНАЛЬНАЯ МАТЕМАТИКА
         const C_eff = C / (h * C + (1 - h));
         const trainee_inflation = 1 / (1 - beta);
 
@@ -448,7 +435,6 @@
         document.getElementById('res_mentors_count').innerText = final_mentors;
         document.getElementById('res_active_trainees').innerText = active_total.toFixed(1);
 
-        // Обновление статуса
         const selectedShop = $('#shopSelect').find('option:selected');
         const statusCard = document.getElementById('statusCard');
         const diffEl = document.getElementById('res_diff');
@@ -477,7 +463,6 @@
             diffSubEl.innerText = 'Выберите цех';
         }
 
-        // Обновление формулы
         const lines = [
             `V = ${V.toFixed(2)} чел/мес`,
             `Активных учеников: <b>${active_total.toFixed(2)}</b>`,
@@ -487,7 +472,6 @@
         ];
         document.getElementById('formula_box').innerHTML = lines.join('<br>');
 
-        // Обновление графика (6 шагов)
         if(myChart) {
             const v0 = step0 * k;
             const v1 = Math.max(0, step1 - step0) * k;

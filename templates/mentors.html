@@ -35,7 +35,6 @@
     </style>
 
     {% if not db_exists %}
-    <!-- ЭКРАН ОТСУТСТВИЯ БАЗЫ ДАННЫХ -->
     <div class="d-flex flex-column justify-content-center align-items-center" style="min-height: 60vh;">
         <div class="dash-card p-5 text-center" style="max-width: 500px; border-top: 4px solid #ef4444;">
             <i class="bi bi-database-exclamation text-danger mb-3" style="font-size: 4rem;"></i>
@@ -52,7 +51,6 @@
     </div>
     {% else %}
 
-    <!-- Скрытая форма загрузки -->
     <div class="collapse mb-4" id="uploadCard">
         <div class="card dash-card" style="border-left: 4px solid #3b82f6;">
             <div class="card-body">
@@ -68,7 +66,6 @@
         </div>
     </div>
 
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ И ФИЛЬТРЫ -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="h4 mb-0 fw-bold text-dark">Аналитика наставничества</h2>
         <button class="btn btn-outline-primary btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#uploadCard">
@@ -114,7 +111,6 @@
     {% set total_emp = data | sum(attribute='employees_count') %}
     {% set total_org = data | sum(attribute='org_events_sum') %}
 
-    <!-- 1 ЭТАЖ: 3 ЦВЕТНЫЕ ПЛАШКИ -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <div class="color-card bg-green-custom">
@@ -150,9 +146,7 @@
         </div>
     </div>
 
-    <!-- 2 ЭТАЖ: КАСТОМНЫЕ ГРАФИКИ -->
     <div class="row g-4 mb-4">
-        <!-- Левый график (Динамический) -->
         <div class="col-xl-8">
             <div class="dash-card h-100 p-4">
                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -170,7 +164,6 @@
                     </div>
                 </div>
 
-                <!-- Чекбоксы для выбора данных -->
                 <div class="d-flex flex-wrap gap-3 mb-3 pb-2 border-bottom">
                     <div class="form-check form-check-inline mb-0">
                         <input class="form-check-input main-metric-cb" type="checkbox" value="active" id="cbMainActive" checked>
@@ -191,7 +184,6 @@
                 </div>
 
                 <div class="chart-container-scroll">
-                    <!-- Увеличили высоту до 350px -->
                     <div id="mainChartContainer" style="position: relative; height: 350px; width: 100%;">
                         <canvas id="mainBarChart"></canvas>
                     </div>
@@ -199,7 +191,6 @@
             </div>
         </div>
 
-        <!-- Правый график (Доли) -->
         <div class="col-xl-4">
             <div class="dash-card h-100 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -217,7 +208,6 @@
                     <option value="org">Показать: План (орг. мер.)</option>
                 </select>
 
-                <!-- Увеличили высоту до 350px -->
                 <div style="position: relative; height: 350px; width: 100%;">
                     <canvas id="donutChart"></canvas>
                 </div>
@@ -225,7 +215,6 @@
         </div>
     </div>
 
-    <!-- 3 ЭТАЖ: ТАБЛИЦА -->
     <div class="dash-card p-4">
         <h6 class="text-dark fw-bold mb-4">Детализация по цехам</h6>
         <div class="table-responsive">
@@ -277,7 +266,6 @@
 
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444', '#64748b'];
 
-    // Настройки для метрик
     const metricConfig = {
         active: { key: 'active_mentors', label: 'Активные наставники', color: '#10b981' },
         emp: { key: 'employees_count', label: 'Штат', color: '#3b82f6' },
@@ -304,7 +292,6 @@
 
         const labels = Object.keys(aggregated);
 
-        // Формируем датасеты
         const datasets = selectedMetrics.map(metric => {
             return {
                 label: metricConfig[metric].label,

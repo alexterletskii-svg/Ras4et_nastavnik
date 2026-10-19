@@ -16,9 +16,8 @@ def get_db_connection():
     return conn
 
 
-# --- НОВАЯ УМНАЯ ПРОВЕРКА БД ---
+
 def is_db_initialized():
-    """Проверяет, существует ли файл и есть ли в нем нужные таблицы."""
     if not os.path.exists(DB_PATH):
         return False
     try:
@@ -38,7 +37,7 @@ def create_database_schema():
         try:
             os.remove(DB_PATH)
         except PermissionError:
-            pass  # Если файл занят, просто пересоздадим таблицы поверх
+            pass
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -131,7 +130,6 @@ def init_db():
     return redirect(url_for('mentors_data'))
 
 
-# Очистка табельного номера
 def clean_emp_code(val):
     s = str(val).strip()
     if s.endswith('.0'):
@@ -139,7 +137,6 @@ def clean_emp_code(val):
     return s if s != 'nan' and s else None
 
 
-# Поиск или создание цеха
 def get_or_create_shop(cursor, shop_name, shop_code=None):
     if not shop_name or str(shop_name).lower() == 'nan':
         return None
@@ -147,14 +144,12 @@ def get_or_create_shop(cursor, shop_name, shop_code=None):
     shop_name = str(shop_name).strip()
     shop_code = str(shop_code).strip() if pd.notna(shop_code) else None
 
-    # Ищем по коду
     if shop_code and shop_code != 'nan':
         cursor.execute('SELECT id FROM shops WHERE shop_code = ?', (shop_code,))
         res = cursor.fetchone()
         if res:
             return res['id']
 
-    # Ищем по названию
     cursor.execute('SELECT id FROM shops WHERE name = ?', (shop_name,))
     res = cursor.fetchone()
     if res:
@@ -163,7 +158,6 @@ def get_or_create_shop(cursor, shop_name, shop_code=None):
             cursor.execute('UPDATE shops SET shop_code = ? WHERE id = ?', (shop_code, shop_id))
         return shop_id
 
-    # Если не нашли, кидаем в "Нераспределенное"
     cursor.execute('SELECT id FROM sites WHERE name = "Нераспределенное"')
     site = cursor.fetchone()
     if not site:
@@ -184,7 +178,6 @@ def get_or_create_shop(cursor, shop_name, shop_code=None):
     return cursor.lastrowid
 
 
-# Умный поиск строки с заголовками (игнорирует звездочки)
 def find_header_row(df_raw, required_cols):
     for idx, row in df_raw.iterrows():
         row_vals = [str(val).replace('*', '').strip() for val in row.values]
@@ -195,14 +188,12 @@ def find_header_row(df_raw, required_cols):
 
 @app.route('/')
 def index():
-    # Используем новую проверку
     if not is_db_initialized():
         stats = {'active_mentors': 0, 'total_staff': 0, 'coverage': 0, 'planned_hiring': 0, 'dismissed': 0}
         return render_template('index.html', stats=stats)
 
     conn = get_db_connection()
 
-    # Собираем сводную статистику для главной страницы
     active_mentors = conn.execute("SELECT COUNT(*) FROM mentors WHERE is_active = 1").fetchone()[0] or 0
     total_staff = conn.execute("SELECT COUNT(*) FROM employees").fetchone()[0] or 0
     planned_hiring = conn.execute("SELECT SUM(headcount_change) FROM org_events WHERE headcount_change > 0").fetchone()[
@@ -307,7 +298,6 @@ def upload_file():
     files_processed = 0
 
     try:
-        # 1. ШТАТНОЕ РАСПИСАНИЕ
         file_staff = request.files.get('file_staff')
         if file_staff and file_staff.filename:
             df_raw = pd.read_excel(file_staff, header=None)
@@ -362,7 +352,6 @@ def upload_file():
                         ''', (shop_id, emp_code, fio_val))
                 files_processed += 1
 
-        # 2. СПИСОЧНАЯ ЧИСЛЕННОСТЬ
         file_emp = request.files.get('file_employees')
         if file_emp and file_emp.filename:
             df_raw = pd.read_excel(file_emp, header=None)
@@ -399,7 +388,6 @@ def upload_file():
                     ))
                 files_processed += 1
 
-        # 3. УВОЛЕННЫЕ
         file_dism = request.files.get('file_dismissals')
         if file_dism and file_dism.filename:
             df_raw = pd.read_excel(file_dism, header=None)
@@ -436,11 +424,9 @@ def upload_file():
                         str(row.get('Причина мероприятия', '')).strip()
                     ))
 
-                    # Деактивируем наставника при увольнении
                     cursor.execute('UPDATE mentors SET is_active = 0 WHERE emp_code = ?', (emp_code,))
                 files_processed += 1
 
-        # 4. ОРГ МЕРОПРИЯТИЯ
         file_org = request.files.get('file_org')
         if file_org and file_org.filename:
             df_raw = pd.read_excel(file_org, header=None)
@@ -494,7 +480,6 @@ def upload_file():
 
 @app.route('/calculator')
 def calculator():
-    # Защита калькулятора
     if not is_db_initialized():
         flash('Для работы калькулятора необходимо сначала создать базу данных.', 'warning')
         return redirect(url_for('mentors_data'))

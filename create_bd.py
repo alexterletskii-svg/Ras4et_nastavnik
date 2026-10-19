@@ -4,19 +4,15 @@ import os
 def create_database():
     db_name = 'factory'
 
-    # Если база данных уже существует, удаляем её для чистого обновления структуры
     if os.path.exists(db_name):
         os.remove(db_name)
         print(f"Старая база данных '{db_name}' удалена.")
 
-    # Подключаемся к базе данных (создастся новый пустой файл)
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 
-    # Включаем поддержку внешних ключей (обязательно для SQLite)
     cursor.execute("PRAGMA foreign_keys = ON;")
 
-    # 1. Таблица площадок
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +21,6 @@ def create_database():
         )
     ''')
 
-    # 2. Таблица переделов
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS divisions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +30,6 @@ def create_database():
         )
     ''')
 
-    # 3. Таблица цехов
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS shops (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +40,6 @@ def create_database():
         )
     ''')
 
-    # 4. Таблица наставников (Основной файл)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS mentors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +51,6 @@ def create_database():
         )
     ''')
 
-    # 5. Таблица списочной численности (Текущий штат)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS employees (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +66,6 @@ def create_database():
         )
     ''')
 
-    # 6. Таблица уволенных (Для расчета текучести и деактивации наставников)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS dismissals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +79,6 @@ def create_database():
         )
     ''')
 
-    # 7. Таблица организационных мероприятий (План найма/сокращений)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS org_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +93,6 @@ def create_database():
         )
     ''')
 
-    # Сохраняем изменения и закрываем соединение
     conn.commit()
     conn.close()
     print(f"Новая база данных '{db_name}' успешно создана со всеми нужными таблицами и связями!")

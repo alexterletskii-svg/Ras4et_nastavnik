@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 def create_database():
-    db_name = 'factory.db'
+    db_name = 'factory'
 
     # Если база данных уже существует, удаляем её для чистого обновления структуры
     if os.path.exists(db_name):

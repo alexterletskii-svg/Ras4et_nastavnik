@@ -1,12 +1,12 @@
 import os
 import sqlite3
 import pandas as pd
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, url_for
 import json
 
 app = Flask(__name__)
 app.secret_key = '123456'
-DB_PATH = 'factory.db'
+DB_PATH = 'factory.bd'
 
 
 def get_db_connection():
@@ -14,6 +14,102 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+
+# --- НОВАЯ ФУНКЦИЯ СОЗДАНИЯ БД ---
+def create_database_schema():
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            location TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS divisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            FOREIGN KEY (site_id) REFERENCES sites (id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS shops (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            division_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            shop_code TEXT,
+            FOREIGN KEY (division_id) REFERENCES divisions (id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS mentors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop_id INTEGER,
+            emp_code TEXT,
+            full_name TEXT,
+            is_active INTEGER,
+            FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop_id INTEGER,
+            emp_code TEXT,
+            position TEXT,
+            gender TEXT,
+            birth_date TEXT,
+            retirement_date TEXT,
+            report_date TEXT,
+            FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS org_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop_id INTEGER,
+            event_type TEXT,
+            event_description TEXT,
+            position TEXT,
+            planned_year TEXT,
+            planned_month TEXT,
+            headcount_change REAL,
+            FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS dismissals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop_id INTEGER,
+            emp_code TEXT,
+            full_name TEXT,
+            dismissal_date TEXT,
+            position TEXT,
+            reason TEXT,
+            FOREIGN KEY (shop_id) REFERENCES shops (id) ON DELETE CASCADE
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+
+@app.route('/init_db', methods=['POST'])
+def init_db():
+    try:
+        create_database_schema()
+        flash('База данных успешно создана!', 'success')
+    except Exception as e:
+        flash(f'Ошибка при создании БД: {str(e)}', 'danger')
+    return redirect(url_for('mentors_data'))
 
 
 # Очистка табельного номера
@@ -80,6 +176,10 @@ def find_header_row(df_raw, required_cols):
 
 @app.route('/')
 def index():
+    if not os.path.exists(DB_PATH):
+        stats = {'active_mentors': 0, 'total_staff': 0, 'coverage': 0, 'planned_hiring': 0, 'dismissed': 0}
+        return render_template('index.html', stats=stats)
+
     conn = get_db_connection()
 
     # Собираем сводную статистику для главной страницы
@@ -108,6 +208,9 @@ def index():
 
 @app.route('/mentors')
 def mentors_data():
+    if not os.path.exists(DB_PATH):
+        return render_template('mentors.html', db_exists=False)
+
     conn = get_db_connection()
 
     site_filter = request.args.get('site', '')
@@ -168,7 +271,7 @@ def mentors_data():
     return render_template(
         'mentors.html', data=data, sites=sites, divisions=divisions, shops=shops,
         site_filter=site_filter, division_filter=division_filter, shop_filter=shop_filter, show_zero=show_zero,
-        chart_data_json=json.dumps(data)
+        chart_data_json=json.dumps(data), db_exists=True
     )
 
 
@@ -386,7 +489,6 @@ def calculator():
         'org_events_sum': row['org_events_sum']
     } for row in shops_data]
     return render_template('calculator.html', shops=shops)
-
 
 
 if __name__ == '__main__':

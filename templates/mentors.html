@@ -34,6 +34,24 @@
         .chart-container-scroll { overflow-y: auto; overflow-x: hidden; width: 100%; }
     </style>
 
+    {% if not db_exists %}
+    <!-- ЭКРАН ОТСУТСТВИЯ БАЗЫ ДАННЫХ -->
+    <div class="d-flex flex-column justify-content-center align-items-center" style="min-height: 60vh;">
+        <div class="dash-card p-5 text-center" style="max-width: 500px; border-top: 4px solid #ef4444;">
+            <i class="bi bi-database-exclamation text-danger mb-3" style="font-size: 4rem;"></i>
+            <h3 class="fw-bold text-dark">База данных не найдена</h3>
+            <p class="text-muted mb-4">
+                Файл базы данных отсутствует. Для работы раздела аналитики и загрузки Excel-файлов необходимо инициализировать структуру базы данных.
+            </p>
+            <form action="/init_db" method="post">
+                <button type="submit" class="btn btn-primary btn-lg rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-database-add me-2"></i>Создать базу данных
+                </button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+
     <!-- Скрытая форма загрузки -->
     <div class="collapse mb-4" id="uploadCard">
         <div class="card dash-card" style="border-left: 4px solid #3b82f6;">
@@ -247,10 +265,12 @@
             </table>
         </div>
     </div>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+    {% if db_exists %}
     const rawData = {{ chart_data_json | safe }} || [];
     let barChartInstance = null;
     let donutChartInstance = null;
@@ -393,5 +413,6 @@
         drawBarChart();
         drawDonutChart();
     });
+    {% endif %}
 </script>
 {% endblock %}

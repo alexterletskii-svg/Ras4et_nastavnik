@@ -1,37 +1,127 @@
 {% extends 'base.html' %}
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
-        body { background-color: #f4f7fa; }
+        body { background-color: #f1f5f9; }
         .dash-card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 16px;
+            box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
             background: #fff;
             margin-bottom: 20px;
         }
-        .color-card {
-            border-radius: 12px;
+
+        /* Современные KPI карточки */
+        .kpi-card {
+            border-radius: 16px;
             color: #fff;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 20px 22px;
+            position: relative;
+            overflow: hidden;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            box-shadow: 0 8px 18px -4px rgba(0, 0, 0, 0.1);
         }
-        .bg-green-custom { background: linear-gradient(135deg, #10b981, #059669); }
-        .bg-red-custom { background: linear-gradient(135deg, #ef4444, #dc2626); }
-        .bg-blue-custom { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            right: -15px;
+            bottom: -15px;
+            width: 95px;
+            height: 95px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+        .bg-grad-emerald { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+        .bg-grad-rose    { background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); }
+        .bg-grad-indigo  { background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); }
+        .bg-grad-slate   { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
 
-        .big-number { font-size: 2.5rem; font-weight: 700; line-height: 1; margin-top: 10px; }
+        .big-number { font-size: 2.3rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin-top: 6px; }
 
-        .top-filters .form-select { border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; }
-        .top-filters label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;}
+        /* Стили фильтров */
+        .top-filters .form-select, .matrix-filters .form-select, .matrix-filters .form-control {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.84rem;
+            background-color: #f8fafc;
+            font-weight: 500;
+        }
+        .top-filters label, .matrix-filters label {
+            font-size: 0.7rem;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
 
-        .chart-controls .form-select { font-size: 0.8rem; padding: 0.25rem 2rem 0.25rem 0.75rem; }
-        .chart-container-scroll { overflow-y: auto; overflow-x: hidden; width: 100%; }
+        .chart-controls .form-select { font-size: 0.8rem; padding: 0.28rem 1.8rem 0.28rem 0.7rem; border-radius: 8px; cursor: pointer; }
+
+        /* Кнопки-чипсы для метрик графика */
+        .metric-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #64748b;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .metric-pill input { display: none; }
+        .metric-pill .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .metric-pill.active {
+            background: #0f172a;
+            color: #fff;
+            border-color: #0f172a;
+        }
+
+        /* Плиточная сетка легенды для круговой диаграммы (БЕЗ СКРОЛЛА) */
+        .donut-legend-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 14px;
+        }
+        .legend-tile {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 7px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.78rem;
+        }
+        .legend-tile-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #334155;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .legend-tile-val {
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+        }
+
+        /* Выделение выбранного столбца месяца в матрице */
+        .highlight-month-col {
+            background-color: rgba(59, 130, 246, 0.08) !important;
+        }
     </style>
 
     {% if not db_exists %}
@@ -51,29 +141,40 @@
     </div>
     {% else %}
 
+    <!-- ПАНЕЛЬ ЗАГРУЗКИ EXCEL И ПЕРЕСОЗДАНИЯ БД -->
     <div class="collapse mb-4" id="uploadCard">
         <div class="card dash-card" style="border-left: 4px solid #3b82f6;">
-            <div class="card-body">
-                <h6 class="text-primary mb-3 fw-bold"><i class="bi bi-cloud-upload me-2"></i>Загрузка файлов (Excel)</h6>
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="text-primary mb-0 fw-bold"><i class="bi bi-cloud-upload me-2"></i>Загрузка кадровых отчетов (Excel)</h6>
+                    <form action="/init_db" method="post" onsubmit="return confirm('Пересоздать базу данных с нуля? Все текущие данные будут очищены.');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                            <i class="bi bi-database-fill-gear me-1"></i> Пересоздать БД с нуля
+                        </button>
+                    </form>
+                </div>
                 <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3">
-                    <div class="col-md-3"><label class="small fw-bold">1. Штатное расписание</label><input type="file" name="file_staff" class="form-control form-control-sm"></div>
-                    <div class="col-md-3"><label class="small fw-bold">2. Списочная численность</label><input type="file" name="file_employees" class="form-control form-control-sm"></div>
-                    <div class="col-md-3"><label class="small fw-bold">3. Уволенные</label><input type="file" name="file_dismissals" class="form-control form-control-sm"></div>
-                    <div class="col-md-3"><label class="small fw-bold">4. Оргмероприятия</label><input type="file" name="file_org" class="form-control form-control-sm"></div>
-                    <div class="col-12"><button type="submit" class="btn btn-primary btn-sm px-4">Загрузить данные</button></div>
+                    <div class="col-md-3"><label class="small fw-bold text-secondary">1. Штатное расписание</label><input type="file" name="file_staff" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label class="small fw-bold text-secondary">2. Списочная численность</label><input type="file" name="file_employees" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label class="small fw-bold text-secondary">3. Уволенные</label><input type="file" name="file_dismissals" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label class="small fw-bold text-secondary">4. Оргмероприятия</label><input type="file" name="file_org" class="form-control form-control-sm"></div>
+                    <div class="col-12"><button type="submit" class="btn btn-primary btn-sm rounded-pill px-4">Загрузить и пересчитать</button></div>
                 </form>
             </div>
         </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h4 mb-0 fw-bold text-dark">Аналитика наставничества</h2>
-        <button class="btn btn-outline-primary btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#uploadCard">
-            <i class="bi bi-arrow-clockwise me-1"></i> Обновить данные
+        <div>
+            <h2 class="h4 mb-0 fw-bold text-dark">Аналитический дашборд наставничества</h2>
+            <small class="text-muted">Мониторинг штата, увольнений и помесячного плана оргмероприятий</small>
+        </div>
+        <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#uploadCard">
+            <i class="bi bi-cloud-arrow-up me-1"></i> Загрузка данных / БД
         </button>
     </div>
 
-    <!-- ФИЛЬТРЫ (добавлены Год и Месяц оргмероприятий) -->
+    <!-- ГЛОБАЛЬНЫЕ ФИЛЬТРЫ -->
     <div class="dash-card p-3 mb-4">
         <form id="filterForm" method="get" action="/mentors" class="row g-2 top-filters align-items-end">
             <div class="col-md-2">
@@ -116,201 +217,285 @@
                     <input class="form-check-input auto-submit" type="checkbox" name="show_zero" id="showZeroCheck" {% if show_zero %}checked{% endif %}>
                     <label class="form-check-label text-muted text-lowercase" for="showZeroCheck" style="margin-bottom: 0;">Пустые цеха</label>
                 </div>
-                <a href="/mentors" class="btn btn-light btn-sm rounded-pill px-2 text-muted border">Сброс</a>
+                <a href="/mentors" class="btn btn-light btn-sm rounded-pill px-3 text-muted border">Сброс</a>
             </div>
         </form>
     </div>
 
     {% set total_active = data | sum(attribute='active_mentors') %}
-    {% set total_dismissed = data | sum(attribute='dismissed_mentors') %}
+    {% set total_dismissed_mentors = data | sum(attribute='dismissed_mentors') %}
+    {% set total_dismissals_all = data | sum(attribute='dismissals_total') %}
     {% set total_emp = data | sum(attribute='employees_count') %}
     {% set total_org_net = data | sum(attribute='org_events_sum') %}
     {% set total_org_pos = data | sum(attribute='org_events_pos') %}
     {% set total_org_neg = data | sum(attribute='org_events_neg') %}
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="color-card bg-green-custom">
-                <div class="d-flex justify-content-between">
-                    <h6 class="mb-0 opacity-75">Активные наставники</h6>
-                    <i class="bi bi-people fs-5 opacity-50"></i>
+    <!-- 4 KPI-КАРТОЧКИ -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card bg-grad-slate">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold text-uppercase opacity-75">Списочный штат</span>
+                    <i class="bi bi-building fs-5 opacity-50"></i>
+                </div>
+                <div class="big-number">{{ total_emp }}</div>
+                <div class="small mt-2 opacity-75">
+                    Цехов в выборке: <b>{{ data | length }}</b>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card bg-grad-emerald">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold text-uppercase opacity-75">Активные наставники</span>
+                    <i class="bi bi-person-check-fill fs-5 opacity-50"></i>
                 </div>
                 <div class="big-number">{{ total_active }}</div>
-                <div class="small opacity-100 mt-2 fw-semibold">
-                    Покрытие штата: {% if total_emp > 0 %}{{ ((total_active / total_emp) * 100) | round(1) }}{% else %}0{% endif %}%
+                <div class="small mt-2 d-flex justify-content-between align-items-center">
+                    <span>Охват: <b>{% if total_emp > 0 %}{{ ((total_active / total_emp) * 100) | round(1) }}{% else %}0{% endif %}%</b></span>
+                    <span class="badge bg-white text-success">1 на {% if total_active > 0 %}{{ (total_emp / total_active) | round(1) }}{% else %}0{% endif %} раб.</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="color-card bg-red-custom">
-                <div class="d-flex justify-content-between">
-                    <h6 class="mb-0 opacity-75">Уволенные наставники</h6>
-                    <i class="bi bi-person-x fs-5 opacity-50"></i>
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card bg-grad-rose">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold text-uppercase opacity-75">Увольнения (Отток)</span>
+                    <i class="bi bi-person-x-fill fs-5 opacity-50"></i>
                 </div>
-                <div class="big-number">{{ total_dismissed }}</div>
-                <div class="small opacity-75 mt-2">Потеряно за отчетный период</div>
+                <div class="big-number">{{ total_dismissals_all }}</div>
+                <div class="small mt-2 d-flex gap-2 align-items-center">
+                    <span class="badge bg-white text-danger">Наставников: {{ total_dismissed_mentors }}</span>
+                    <span class="opacity-75">Всего по цехам: {{ total_dismissals_all }}</span>
+                </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="color-card bg-blue-custom">
-                <div class="d-flex justify-content-between">
-                    <h6 class="mb-0 opacity-75">План штата (Орг. мер.)</h6>
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card bg-grad-indigo">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold text-uppercase opacity-75">План (Орг. мероприятия)</span>
                     <i class="bi bi-graph-up-arrow fs-5 opacity-50"></i>
                 </div>
                 <div class="big-number">{% if total_org_net > 0 %}+{% endif %}{{ total_org_net | round(1) }}</div>
-                <div class="small mt-2 d-flex gap-3 fw-semibold">
-                    <span class="badge bg-white text-success px-2 py-1">Ввод (найм): +{{ total_org_pos | round(1) }}</span>
-                    <span class="badge bg-white text-danger px-2 py-1">Вывод (сокр.): {{ total_org_neg | round(1) }}</span>
+                <div class="small mt-2 d-flex gap-2 flex-wrap fw-semibold">
+                    <span class="badge bg-white text-success">+Ввод: {{ total_org_pos | round(1) }}</span>
+                    <span class="badge bg-white text-danger">-Вывод: {{ total_org_neg | round(1) }}</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- НОВЫЙ БЛОК: ДИНАМИКА ОРГМЕРОПРИЯТИЙ ПО МЕСЯЦАМ -->
-    <div class="dash-card p-4 mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h6 class="text-dark fw-bold mb-0"><i class="bi bi-calendar3 me-2 text-primary"></i>Оргмероприятия по месяцам</h6>
-                <small class="text-muted">Динамика набора (+), сокращений (-) и итогового баланса численности в разрезе месяцев</small>
-            </div>
-            <button class="btn btn-sm btn-light border text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#monthlyTableCollapse">
-                Таблица по месяцам <i class="bi bi-chevron-down ms-1"></i>
-            </button>
-        </div>
+    <!-- РЯД 1: ЧИСТЫЙ СРАВНИТЕЛЬНЫЙ ГРАФИК + КОМПАКТНАЯ СТРУКТУРА БЕЗ СКРОЛЛА И ПУСТОТ -->
+    <div class="row g-4 mb-4 align-items-stretch">
+        <div class="col-xl-7">
+            <div class="dash-card h-100 p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                        <div>
+                            <h6 class="text-dark fw-bold mb-0"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Сравнение подразделений</h6>
+                            <small class="text-muted">Сгруппировано и отсортировано по убыванию значимости</small>
+                        </div>
+                        <div class="d-flex gap-2 chart-controls flex-wrap">
+                            <select id="chartLimit" class="form-select border-0 bg-light text-primary fw-semibold">
+                                <option value="10" selected>ТОП-10</option>
+                                <option value="15">ТОП-15</option>
+                                <option value="999">Показать все</option>
+                            </select>
+                            <select id="mainChartType" class="form-select border-0 bg-light text-muted fw-semibold">
+                                <option value="bar_v" selected>Вертикальные столбцы</option>
+                                <option value="bar_h">Горизонтальный рейтинг</option>
+                                <option value="line">Линейный тренд</option>
+                            </select>
+                            <select id="chartGroupBy" class="form-select border-0 bg-light text-muted fw-semibold">
+                                <option value="site_name">По площадкам</option>
+                                <option value="division_name" selected>По переделам</option>
+                                <option value="shop_name">По цехам</option>
+                            </select>
+                        </div>
+                    </div>
 
-        <div style="position: relative; height: 260px; width: 100%;">
-            <canvas id="monthlyOrgChart"></canvas>
-        </div>
-
-        <div class="collapse mt-3" id="monthlyTableCollapse">
-            <div class="table-responsive">
-                <table class="table table-sm table-bordered text-center align-middle mb-0" style="font-size: 0.82rem;">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="text-start">Показатель</th>
-                            {% for m in monthly_org_data %}
-                                <th>{{ m.month_name[:3] }}</th>
-                            {% endfor %}
-                            <th class="fw-bold">Итого</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="text-start fw-semibold text-success">Ввод (найм, +)</td>
-                            {% for m in monthly_org_data %}
-                                <td class="text-success">{% if m.pos_sum > 0 %}+{{ m.pos_sum }}{% else %}-{% endif %}</td>
-                            {% endfor %}
-                            <td class="fw-bold text-success">+{{ total_org_pos | round(1) }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-start fw-semibold text-danger">Вывод (сокращение, -)</td>
-                            {% for m in monthly_org_data %}
-                                <td class="text-danger">{% if m.neg_sum < 0 %}{{ m.neg_sum }}{% else %}-{% endif %}</td>
-                            {% endfor %}
-                            <td class="fw-bold text-danger">{{ total_org_neg | round(1) }}</td>
-                        </tr>
-                        <tr class="table-light fw-bold">
-                            <td class="text-start">Баланс (Итог)</td>
-                            {% for m in monthly_org_data %}
-                                <td class="{% if m.net_sum > 0 %}text-primary{% elif m.net_sum < 0 %}text-danger{% else %}text-muted{% endif %}">
-                                    {% if m.net_sum > 0 %}+{{ m.net_sum }}{% elif m.net_sum < 0 %}{{ m.net_sum }}{% else %}0{% endif %}
-                                </td>
-                            {% endfor %}
-                            <td class="{% if total_org_net > 0 %}text-primary{% elif total_org_net < 0 %}text-danger{% endif %}">
-                                {% if total_org_net > 0 %}+{% endif %}{{ total_org_net | round(1) }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-xl-8">
-            <div class="dash-card h-100 p-4">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="text-dark fw-bold mb-0">Анализ показателей по подразделениям</h6>
-                    <div class="d-flex gap-2 chart-controls">
-                        <select id="mainChartType" class="form-select border-0 bg-light text-muted fw-semibold">
-                            <option value="bar" selected>Гистограмма</option>
-                            <option value="line">Линейный график</option>
-                        </select>
-                        <select id="chartGroupBy" class="form-select border-0 bg-light text-muted fw-semibold">
-                            <option value="site_name">По площадкам</option>
-                            <option value="division_name" selected>По переделам</option>
-                            <option value="shop_name">По цехам</option>
-                        </select>
+                    <!-- ЧИПСЫ МЕТРИК -->
+                    <div class="d-flex flex-wrap gap-2 mb-3 pb-2 border-bottom">
+                        <label class="metric-pill active">
+                            <input class="main-metric-cb" type="checkbox" value="active" checked>
+                            <span class="dot" style="background:#10b981;"></span> Наставники ({{ total_active }})
+                        </label>
+                        <label class="metric-pill">
+                            <input class="main-metric-cb" type="checkbox" value="emp">
+                            <span class="dot" style="background:#3b82f6;"></span> Штат ({{ total_emp }})
+                        </label>
+                        <label class="metric-pill active">
+                            <input class="main-metric-cb" type="checkbox" value="org_pos" checked>
+                            <span class="dot" style="background:#06b6d4;"></span> Орг. Найм + ({{ total_org_pos | round(0) | int }})
+                        </label>
+                        <label class="metric-pill active">
+                            <input class="main-metric-cb" type="checkbox" value="org_neg" checked>
+                            <span class="dot" style="background:#f43f5e;"></span> Орг. Сокр. - ({{ total_org_neg | round(0) | int }})
+                        </label>
+                        <label class="metric-pill">
+                            <input class="main-metric-cb" type="checkbox" value="org">
+                            <span class="dot" style="background:#f59e0b;"></span> Орг. Баланс ± ({{ total_org_net | round(0) | int }})
+                        </label>
+                        <label class="metric-pill">
+                            <input class="main-metric-cb" type="checkbox" value="dismissed_all">
+                            <span class="dot" style="background:#8b5cf6;"></span> Уволенные ({{ total_dismissals_all }})
+                        </label>
                     </div>
                 </div>
 
-                <div class="d-flex flex-wrap gap-3 mb-3 pb-2 border-bottom">
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input main-metric-cb" type="checkbox" value="active" id="cbMainActive" checked>
-                        <label class="form-check-label small text-success fw-semibold" for="cbMainActive">Активные наставники</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input main-metric-cb" type="checkbox" value="emp" id="cbMainEmp" checked>
-                        <label class="form-check-label small text-primary fw-semibold" for="cbMainEmp">Штат</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input main-metric-cb" type="checkbox" value="dismissed" id="cbMainDismissed">
-                        <label class="form-check-label small text-danger fw-semibold" for="cbMainDismissed">Уволенные</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input main-metric-cb" type="checkbox" value="org_pos" id="cbMainOrgPos">
-                        <label class="form-check-label small text-info fw-semibold" for="cbMainOrgPos">Орг. мер. (Найм +)</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input main-metric-cb" type="checkbox" value="org" id="cbMainOrg">
-                        <label class="form-check-label small text-warning fw-semibold" for="cbMainOrg">Орг. мер. (Баланс ±)</label>
-                    </div>
-                </div>
-
-                <div class="chart-container-scroll">
-                    <div id="mainChartContainer" style="position: relative; height: 350px; width: 100%;">
-                        <canvas id="mainBarChart"></canvas>
-                    </div>
+                <div style="position: relative; height: 340px; width: 100%;">
+                    <canvas id="mainBarChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-4">
-            <div class="dash-card h-100 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="text-dark fw-bold mb-0">Структура</h6>
-                    <select id="donutChartType" class="form-select form-select-sm border-0 bg-light text-muted fw-semibold w-auto chart-controls">
-                        <option value="doughnut" selected>Кольцо</option>
-                        <option value="pie">Круг</option>
-                    </select>
+        <!-- УМНЫЙ БЛОК СТРУКТУРЫ (БЕЗ ПУСТОГО МЕСТА И БЕЗ СКРОЛЛА) -->
+        <div class="col-xl-5">
+            <div class="dash-card h-100 p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+                        <div>
+                            <h6 class="text-dark fw-bold mb-0"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Структура и пропорции</h6>
+                            <small class="text-muted" id="donutSubtitle">ТОП-7 подразделений + группа «Прочие»</small>
+                        </div>
+                        <div class="d-flex gap-1 chart-controls">
+                            <select id="donutMode" class="form-select form-select-sm border-0 bg-light text-primary fw-semibold">
+                                <option value="by_unit" {% if data|length > 1 %}selected{% endif %}>По подразделениям</option>
+                                <option value="by_metrics" {% if data|length <= 1 %}selected{% endif %}>Сводка всех метрик</option>
+                            </select>
+                            <select id="donutChartType" class="form-select form-select-sm border-0 bg-light text-muted fw-semibold">
+                                <option value="doughnut" selected>Кольцо</option>
+                                <option value="polarArea">Полярная</option>
+                                <option value="bar">Рейтинг-бар</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="donutUnitControls" class="row g-2 mb-2 {% if data|length <= 1 %}d-none{% endif %}">
+                        <div class="col-7">
+                            <select id="donutChartMetric" class="form-select form-select-sm border-0 bg-light text-dark fw-semibold">
+                                <option value="org_pos" selected>Показатель: Орг. мер. (Найм +)</option>
+                                <option value="org_neg">Показатель: Орг. мер. (Сокращение -)</option>
+                                <option value="active">Показатель: Активные наставники</option>
+                                <option value="emp">Показатель: Списочный штат</option>
+                                <option value="dismissed_all">Показатель: Уволенные сотрудники</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <select id="donutGroupBy" class="form-select form-select-sm border-0 bg-light text-dark fw-semibold">
+                                <option value="shop_name" selected>Разрез: По цехам</option>
+                                <option value="division_name">Разрез: По переделам</option>
+                                <option value="site_name">Разрез: По площадкам</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
-                <select id="donutChartMetric" class="form-select form-select-sm border-0 bg-light text-muted fw-semibold mb-3">
-                    <option value="active" selected>Показать: Активные наставники</option>
-                    <option value="emp">Показать: Штат</option>
-                    <option value="dismissed">Показать: Уволенные</option>
-                    <option value="org_pos">Показать: План найма (+)</option>
-                </select>
-
-                <div style="position: relative; height: 350px; width: 100%;">
+                <!-- САМ ГРАФИК (КРУПНЫЙ И ПО ЦЕНТРУ) -->
+                <div style="position: relative; height: 220px; width: 100%; margin: 6px 0;">
                     <canvas id="donutChart"></canvas>
                 </div>
+
+                <!-- КОМПАКТНЫЕ ПЛИТКИ (ТОП-8 БЕЗ СКРОЛЛА!) -->
+                <div id="donutTilesGrid" class="donut-legend-grid"></div>
             </div>
         </div>
     </div>
 
-        <div class="dash-card p-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h6 class="text-dark fw-bold mb-0">Детализация по цехам (из БД)</h6>
-            <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3" id="tableTabs" role="tablist" style="font-size: 0.85rem;">
+    <!-- РЯД 2: ДИНАМИКА ОРГМЕРОПРИЯТИЙ ПО МЕСЯЦАМ + ОХВАТ ЦЕХОВ -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+            <div class="dash-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h6 class="text-dark fw-bold mb-0"><i class="bi bi-calendar3 me-2 text-primary"></i>Динамика оргмероприятий по месяцам</h6>
+                        <small class="text-muted">Ввод новых ШЕ (+), сокращение (-) и итоговая линия баланса по месяцам года</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#monthlyTableCollapse">
+                        Сводная таблица <i class="bi bi-chevron-down ms-1"></i>
+                    </button>
+                </div>
+
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="monthlyOrgChart"></canvas>
+                </div>
+
+                <div class="collapse mt-3" id="monthlyTableCollapse">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered text-center align-middle mb-0" style="font-size: 0.8rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Показатель</th>
+                                    {% for m in monthly_org_data %}
+                                        <th>{{ m.short_name or m.month_name[:3] }}</th>
+                                    {% endfor %}
+                                    <th class="fw-bold">Итого</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-start fw-semibold text-success">Ввод (найм, +)</td>
+                                    {% for m in monthly_org_data %}
+                                        <td class="text-success">{% if m.pos_sum > 0 %}+{{ m.pos_sum }}{% else %}-{% endif %}</td>
+                                    {% endfor %}
+                                    <td class="fw-bold text-success">+{{ total_org_pos | round(1) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start fw-semibold text-danger">Вывод (сокр., -)</td>
+                                    {% for m in monthly_org_data %}
+                                        <td class="text-danger">{% if m.neg_sum < 0 %}{{ m.neg_sum }}{% else %}-{% endif %}</td>
+                                    {% endfor %}
+                                    <td class="fw-bold text-danger">{{ total_org_neg | round(1) }}</td>
+                                </tr>
+                                <tr class="table-light fw-bold">
+                                    <td class="text-start">Баланс (Итог)</td>
+                                    {% for m in monthly_org_data %}
+                                        <td class="{% if m.net_sum > 0 %}text-primary{% elif m.net_sum < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                            {% if m.net_sum > 0 %}+{{ m.net_sum }}{% elif m.net_sum < 0 %}{{ m.net_sum }}{% else %}0{% endif %}
+                                        </td>
+                                    {% endfor %}
+                                    <td class="{% if total_org_net > 0 %}text-primary{% elif total_org_net < 0 %}text-danger{% endif %}">
+                                        {% if total_org_net > 0 %}+{% endif %}{{ total_org_net | round(1) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="dash-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="text-dark fw-bold mb-0"><i class="bi bi-award-fill me-2 text-success"></i>ТОП-10 цехов по охвату наставниками (%)</h6>
+                        <small class="text-muted">Процент наставников от общей численности сотрудников цеха</small>
+                    </div>
+                </div>
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="coverageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ДЕТАЛЬНЫЕ ТАБЛИЦЫ ПО ЦЕХАМ (С ФИЛЬТРАМИ ДЛЯ ПОМЕСЯЧНОЙ МАТРИЦЫ) -->
+    <div class="dash-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h6 class="text-dark fw-bold mb-0">Детализация по цехам (из БД)</h6>
+                <small class="text-muted">Переключайтесь между общими показателями и помесячной матрицей оргмероприятий</small>
+            </div>
+            <ul class="nav nav-pills bg-light p-1 rounded-3" id="tableTabs" role="tablist" style="font-size: 0.85rem;">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active py-1 px-3" id="general-tab" data-bs-toggle="pill" data-bs-target="#generalTablePane" type="button" role="tab">
-                        Общие показатели
+                        <i class="bi bi-table me-1"></i> Общие показатели
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link py-1 px-3" id="monthly-tab" data-bs-toggle="pill" data-bs-target="#monthlyMatrixPane" type="button" role="tab">
-                        Оргмероприятия по месяцам
+                        <i class="bi bi-calendar-range me-1"></i> Оргмероприятия по месяцам
                     </button>
                 </li>
             </ul>
@@ -320,16 +505,16 @@
             <!-- ВКЛАДКА 1: ОБЩИЕ ПОКАЗАТЕЛИ -->
             <div class="tab-pane fade show active" id="generalTablePane" role="tabpanel">
                 <div class="table-responsive">
-                    <table id="mentorsTable" class="table table-hover align-middle mb-0 w-100" style="font-size: 0.9rem;">
+                    <table id="mentorsTable" class="table table-hover align-middle mb-0 w-100" style="font-size: 0.88rem;">
                         <thead style="border-bottom: 2px solid #e2e8f0;">
                             <tr>
                                 <th class="text-muted fw-semibold border-0">Площадка</th>
                                 <th class="text-muted fw-semibold border-0">Передел</th>
                                 <th class="text-muted fw-semibold border-0">Цех</th>
-                                <th class="text-muted fw-semibold border-0 text-center">Спис. числ.</th>
+                                <th class="text-muted fw-semibold border-0 text-center">Штат</th>
                                 <th class="text-muted fw-semibold border-0 text-center">Орг. мер. (Баланс / +Ввод / -Вывод)</th>
                                 <th class="text-muted fw-semibold border-0 text-center">Активные наставники</th>
-                                <th class="text-muted fw-semibold border-0 text-center">Уволенные наставники</th>
+                                <th class="text-muted fw-semibold border-0 text-center">Увольнения</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -351,18 +536,20 @@
                                             {% endif %}
                                         </div>
                                         <div class="small text-muted" style="font-size: 0.75rem;">
-                                            <span class="text-success" title="Ввод новых ШЕ">+{{ row.org_events_pos }}</span> /
-                                            <span class="text-danger" title="Сокращение ШЕ">{{ row.org_events_neg }}</span>
+                                            <span class="text-success">+{{ row.org_events_pos }}</span> /
+                                            <span class="text-danger">{{ row.org_events_neg }}</span>
                                         </div>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-center border-light">
+                                <td class="text-center border-light" data-order="{{ row.active_mentors }}">
                                     <span class="badge {% if row.active_mentors > 0 %}bg-success{% else %}bg-light text-dark{% endif %} rounded-pill px-3 py-2">{{ row.active_mentors }}</span>
+                                    <div class="small text-muted mt-1" style="font-size: 0.72rem;">{{ row.coverage_pct }}% от штата</div>
                                 </td>
-                                <td class="text-center border-light">
-                                    <span class="badge {% if row.dismissed_mentors > 0 %}bg-danger{% else %}bg-light text-muted{% endif %} rounded-pill px-3 py-2">{{ row.dismissed_mentors }}</span>
+                                <td class="text-center border-light" data-order="{{ row.dismissals_total }}">
+                                    <span class="badge {% if row.dismissed_mentors > 0 %}bg-danger{% else %}bg-light text-muted{% endif %} rounded-pill px-2 py-1">{{ row.dismissed_mentors }} наст.</span>
+                                    <span class="badge {% if row.dismissals_total > 0 %}bg-warning text-dark{% else %}bg-light text-muted{% endif %} rounded-pill px-2 py-1">{{ row.dismissals_total }} всего</span>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -371,39 +558,104 @@
                 </div>
             </div>
 
-            <!-- ВКЛАДКА 2: ПОМЕСЯЧНЫЕ ОРГМЕРОПРИЯТИЯ ПО ЦЕХАМ ИЗ БД -->
+            <!-- ВКЛАДКА 2: ПОМЕСЯЧНАЯ МАТРИЦА ОРГМЕРОПРИЯТИЙ С УМНЫМИ ФИЛЬТРАМИ -->
             <div class="tab-pane fade" id="monthlyMatrixPane" role="tabpanel">
+                <!-- ПАНЕЛЬ ФИЛЬТРАЦИИ ПОМЕСЯЧНОЙ ТАБЛИЦЫ -->
+                <div class="p-3 bg-light rounded-3 mb-3 border matrix-filters">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label><i class="bi bi-search me-1"></i>Поиск по цеху</label>
+                            <input type="text" id="matrixSearchShop" class="form-control form-control-sm" placeholder="Введите название цеха...">
+                        </div>
+                        <div class="col-md-2">
+                            <label>Фильтр по переделу</label>
+                            <select id="matrixFilterDiv" class="form-select form-select-sm">
+                                <option value="">Все переделы</option>
+                                {% for d in divisions %}<option value="{{ d.name }}">{{ d.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Фильтр по месяцу</label>
+                            <select id="matrixFilterMonth" class="form-select form-select-sm">
+                                <option value="all">Показать все 12 месяцев</option>
+                                {% for m in months_list %}
+                                    <option value="{{ m.num }}">Только цеха с изм. в: {{ m.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>Характер изменений</label>
+                            <select id="matrixFilterType" class="form-select form-select-sm">
+                                <option value="nonzero" selected>С изменениями (≠ 0)</option>
+                                <option value="all">Все цеха (вкл. нулевые)</option>
+                                <option value="pos">Есть найм (+Ввод > 0)</option>
+                                <option value="neg">Есть сокращение (-Вывод < 0)</option>
+                                <option value="net_pos">Итоговый прирост (Баланс > 0)</option>
+                                <option value="net_neg">Итоговая убыль (Баланс < 0)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" id="resetMatrixFilters" class="btn btn-outline-secondary btn-sm w-100 rounded-3">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Сбросить фильтр
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
-                    <table class="table table-sm table-bordered table-hover align-middle mb-0 text-center" style="font-size: 0.82rem;">
+                    <table id="monthlyMatrixTable" class="table table-sm table-bordered table-hover align-middle mb-0 text-center w-100" style="font-size: 0.82rem;">
                         <thead class="table-light">
                             <tr>
+                                <th class="text-start">Передел</th>
                                 <th class="text-start">Цех</th>
                                 {% for m in months_list %}
-                                    <th>{{ m.short_name }}</th>
+                                    <th class="month-col month-col-{{ m.num }}">{{ m.short_name }}</th>
                                 {% endfor %}
-                                <th>+Ввод</th>
-                                <th>-Вывод</th>
+                                <th class="text-success">+Ввод</th>
+                                <th class="text-danger">-Вывод</th>
                                 <th>Баланс</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in data %}
-                            <tr>
-                                <td class="text-start fw-semibold">{{ row.shop_name }}</td>
+                            {% set m_dict = row.months if row.months is defined else {} %}
+                            <tr class="matrix-row"
+                                data-shop="{{ row.shop_name | lower }}"
+                                data-div="{{ row.division_name }}"
+                                data-pos="{{ row.org_events_pos }}"
+                                data-neg="{{ row.org_events_neg }}"
+                                data-net="{{ row.org_events_sum }}"
                                 {% for m in months_list %}
-                                    {% set val = row.months.get(m.num, 0) %}
-                                    <td class="{% if val > 0 %}text-primary fw-bold{% elif val < 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                    data-m{{ m.num }}="{{ m_dict.get(m.num, m_dict.get(m.num|string, 0)) }}"
+                                {% endfor %}
+                            >
+                                <td class="text-start text-muted small">{{ row.division_name }}</td>
+                                <td class="text-start fw-semibold text-dark">{{ row.shop_name }}</td>
+                                {% for m in months_list %}
+                                    {% set val = m_dict.get(m.num, m_dict.get(m.num|string, 0)) %}
+                                    <td class="month-col month-col-{{ m.num }} {% if val > 0 %}text-primary fw-bold{% elif val < 0 %}text-danger fw-bold{% else %}text-muted{% endif %}" data-order="{{ val }}">
                                         {% if val > 0 %}+{{ val }}{% elif val < 0 %}{{ val }}{% else %}-{% endif %}
                                     </td>
                                 {% endfor %}
-                                <td class="text-success fw-semibold">+{{ row.org_events_pos }}</td>
-                                <td class="text-danger fw-semibold">{{ row.org_events_neg }}</td>
-                                <td class="fw-bold {% if row.org_events_sum > 0 %}text-primary{% elif row.org_events_sum < 0 %}text-danger{% endif %}">
+                                <td class="text-success fw-semibold" data-order="{{ row.org_events_pos }}">+{{ row.org_events_pos }}</td>
+                                <td class="text-danger fw-semibold" data-order="{{ row.org_events_neg }}">{{ row.org_events_neg }}</td>
+                                <td class="fw-bold {% if row.org_events_sum > 0 %}text-primary{% elif row.org_events_sum < 0 %}text-danger{% endif %}" data-order="{{ row.org_events_sum }}">
                                     {% if row.org_events_sum > 0 %}+{% endif %}{{ row.org_events_sum }}
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr id="matrixFooterRow">
+                                <td colspan="2" class="text-end">ИТОГО по фильтру:</td>
+                                {% for m in months_list %}
+                                    <td class="month-col month-col-{{ m.num }}" id="ft_m{{ m.num }}">0</td>
+                                {% endfor %}
+                                <td class="text-success" id="ft_pos">0</td>
+                                <td class="text-danger" id="ft_neg">0</td>
+                                <td id="ft_net">0</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -413,34 +665,275 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     {% if db_exists %}
-    const rawData = {{ chart_data_json | safe }} || [];
-    const monthlyOrgData = {{ monthly_org_json | safe }} || [];
+    const rawData = {{ chart_data_json | default('[]', true) | safe }};
+    const monthlyOrgData = {{ monthly_org_json | default('[]', true) | safe }};
 
     let barChartInstance = null;
     let donutChartInstance = null;
     let monthlyChartInstance = null;
+    let coverageChartInstance = null;
+    let matrixDataTable = null;
 
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444', '#64748b'];
+    const palette = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e', '#64748b'];
 
     const metricConfig = {
-        active: { key: 'active_mentors', label: 'Активные наставники', color: '#10b981' },
-        emp: { key: 'employees_count', label: 'Штат', color: '#3b82f6' },
-        dismissed: { key: 'dismissed_mentors', label: 'Уволенные', color: '#ef4444' },
-        org_pos: { key: 'org_events_pos', label: 'Орг. мер. (Найм +)', color: '#06b6d4' },
-        org: { key: 'org_events_sum', label: 'Орг. мер. (Баланс ±)', color: '#f59e0b' }
+        active:        { key: 'active_mentors',   label: 'Наставники',         color: '#10b981' },
+        emp:           { key: 'employees_count',  label: 'Штат',               color: '#3b82f6' },
+        org_pos:       { key: 'org_events_pos',   label: 'Орг. Найм (+)',      color: '#06b6d4' },
+        org_neg:       { key: 'org_events_neg',   label: 'Орг. Сокр. (-)',     color: '#f43f5e' },
+        org:           { key: 'org_events_sum',   label: 'Орг. Баланс (±)',    color: '#f59e0b' },
+        dismissed_all: { key: 'dismissals_total', label: 'Уволенные',          color: '#8b5cf6' }
     };
 
+    // Плагин для отрисовки крупного текста в центре Кольца (Doughnut)
+    const centerTextPlugin = {
+        id: 'centerTextPlugin',
+        afterDraw(chart) {
+            if (chart.config.type !== 'doughnut') return;
+            const meta = chart.options.plugins.centerText;
+            if (!meta || !meta.title) return;
+
+            const { ctx, chartArea: { left, right, top, bottom } } = chart;
+            const centerX = (left + right) / 2;
+            const centerY = (top + bottom) / 2;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.font = '800 1.35rem -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillStyle = '#0f172a';
+            ctx.fillText(meta.value, centerX, centerY - 8);
+
+            ctx.font = '600 0.72rem -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(meta.title, centerX, centerY + 14);
+            ctx.restore();
+        }
+    };
+    Chart.register(centerTextPlugin);
+
+    // 1. ЧИСТЫЙ СРАВНИТЕЛЬНЫЙ ГРАФИК ПО ПОДРАЗДЕЛЕНИЯМ (С ТОП-N СОРТИРОВКОЙ И БЕЗ НАЛОЖЕНИЙ)
+    function drawBarChart() {
+        const canvas = document.getElementById('mainBarChart');
+        if (!canvas) return;
+
+        const groupBy = $('#chartGroupBy').val();
+        const chartMode = $('#mainChartType').val();
+        const limit = parseInt($('#chartLimit').val()) || 10;
+        const selectedMetrics = $('.main-metric-cb:checked').map(function() { return this.value; }).get();
+
+        const aggregated = {};
+        rawData.forEach(row => {
+            const key = row[groupBy] || 'Неизвестно';
+            if (!aggregated[key]) {
+                aggregated[key] = { active: 0, emp: 0, org_pos: 0, org_neg: 0, org: 0, dismissed_all: 0 };
+            }
+            aggregated[key].active        += Number(row.active_mentors) || 0;
+            aggregated[key].emp           += Number(row.employees_count) || 0;
+            aggregated[key].org_pos       += Number(row.org_events_pos) || 0;
+            aggregated[key].org_neg       += Number(row.org_events_neg) || 0;
+            aggregated[key].org           += Number(row.org_events_sum) || 0;
+            aggregated[key].dismissed_all += Number(row.dismissals_total) || 0;
+        });
+
+        // Сортируем подразделения по сумме абсолютных значений выбранных метрик и берем ТОП-N
+        const primaryMetric = selectedMetrics[0] || 'active';
+        const sortedEntries = Object.entries(aggregated)
+            .sort((a, b) => Math.abs(b[1][primaryMetric]) - Math.abs(a[1][primaryMetric]))
+            .slice(0, limit);
+
+        const labels = sortedEntries.map(item => item[0].length > 26 ? item[0].slice(0, 24) + '…' : item[0]);
+        const fullLabels = sortedEntries.map(item => item[0]);
+
+        const isHorizontal = (chartMode === 'bar_h');
+        const actualType = (chartMode === 'line') ? 'line' : 'bar';
+
+        const datasets = selectedMetrics.map(metric => {
+            const cfg = metricConfig[metric];
+            return {
+                label: cfg.label,
+                data: sortedEntries.map(item => Math.round(item[1][metric] * 10) / 10),
+                backgroundColor: cfg.color,
+                borderColor: cfg.color,
+                borderWidth: actualType === 'line' ? 2.5 : 0,
+                fill: false,
+                tension: 0.3,
+                pointRadius: actualType === 'line' ? 4 : 0,
+                borderRadius: actualType === 'bar' ? 5 : 0,
+                maxBarThickness: 32
+            };
+        });
+
+        if (barChartInstance) barChartInstance.destroy();
+
+        const ctx = canvas.getContext('2d');
+        barChartInstance = new Chart(ctx, {
+            type: actualType,
+            data: { labels: labels, datasets: datasets },
+            options: {
+                indexAxis: isHorizontal ? 'y' : 'x',
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => fullLabels[items[0].dataIndex]
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 25, minRotation: 0 } }
+                }
+            }
+        });
+    }
+
+    // 2. УМНЫЙ ГРАФИК СТРУКТУРЫ (ТОП-7 + ПРОЧИЕ ИЛИ СВОДКА МЕТРИК ЦЕХА, БЕЗ СКРОЛЛА!)
+    function drawDonutChart() {
+        const canvas = document.getElementById('donutChart');
+        if (!canvas) return;
+
+        let mode = $('#donutMode').val();
+        const chartType = $('#donutChartType').val();
+
+        // Если выбран всего 1 цех, принудительно показываем режим сводки метрик этого цеха
+        if (rawData.length === 1) {
+            mode = 'by_metrics';
+            $('#donutMode').val('by_metrics');
+        }
+
+        $('#donutUnitControls').toggleClass('d-none', mode === 'by_metrics');
+
+        let finalItems = [];
+        let centerTitle = '';
+        let centerValue = '';
+
+        if (mode === 'by_metrics') {
+            $('#donutSubtitle').text(rawData.length === 1 ? `Структура показателей: ${rawData[0].shop_name}` : 'Суммарное соотношение показателей выборки');
+            const sums = { emp: 0, active: 0, org_pos: 0, org_neg: 0, dismissed_all: 0 };
+            rawData.forEach(r => {
+                sums.emp           += Number(r.employees_count) || 0;
+                sums.active        += Number(r.active_mentors) || 0;
+                sums.org_pos       += Number(r.org_events_pos) || 0;
+                sums.org_neg       += Math.abs(Number(r.org_events_neg) || 0);
+                sums.dismissed_all += Number(r.dismissals_total) || 0;
+            });
+
+            finalItems = [
+                { name: 'Активные наставники', val: Math.round(sums.active * 10) / 10, color: '#10b981' },
+                { name: 'Орг. Найм (+)',       val: Math.round(sums.org_pos * 10) / 10, color: '#06b6d4' },
+                { name: 'Орг. Сокращение (-)', val: Math.round(sums.org_neg * 10) / 10, color: '#f43f5e' },
+                { name: 'Уволенные',           val: Math.round(sums.dismissed_all * 10) / 10, color: '#8b5cf6' }
+            ].filter(i => i.val > 0);
+
+            centerTitle = 'Штат цеха';
+            centerValue = `${sums.emp} чел.`;
+        } else {
+            const metric = $('#donutChartMetric').val();
+            const groupBy = $('#donutGroupBy').val();
+            const dataKey = metricConfig[metric].key;
+            $('#donutSubtitle').text('ТОП-7 подразделений + группа «Прочие»');
+
+            const grouped = {};
+            rawData.forEach(r => {
+                const k = r[groupBy] || 'Неизвестно';
+                grouped[k] = (grouped[k] || 0) + Math.abs(Number(r[dataKey]) || 0);
+            });
+
+            const sorted = Object.entries(grouped)
+                .map(([name, val]) => ({ name, val: Math.round(val * 10) / 10 }))
+                .filter(i => i.val > 0)
+                .sort((a, b) => b.val - a.val);
+
+            // Группируем всё после ТОП-7 в аккуратную категорию «Прочие»
+            if (sorted.length > 7) {
+                const top7 = sorted.slice(0, 7);
+                const othersSum = sorted.slice(7).reduce((acc, x) => acc + x.val, 0);
+                top7.push({ name: `Прочие (${sorted.length - 7})`, val: Math.round(othersSum * 10) / 10 });
+                finalItems = top7.map((item, idx) => ({ ...item, color: palette[idx % palette.length] }));
+            } else {
+                finalItems = sorted.map((item, idx) => ({ ...item, color: palette[idx % palette.length] }));
+            }
+
+            const totalSum = finalItems.reduce((a, b) => a + b.val, 0);
+            centerTitle = metricConfig[metric].label;
+            centerValue = Math.round(totalSum * 10) / 10;
+        }
+
+        const total = finalItems.reduce((acc, x) => acc + x.val, 0);
+
+        // Рисуем компактные плитки (максимум 8 штук, 2 колонки — никакого скролла!)
+        const $grid = $('#donutTilesGrid');
+        $grid.empty();
+        if (finalItems.length === 0) {
+            $grid.html('<div class="text-muted small text-center py-2" style="grid-column: span 2;">Нет данных для отображения</div>');
+        } else {
+            finalItems.forEach(item => {
+                const pct = total > 0 ? Math.round((item.val / total) * 100) : 0;
+                $grid.append(`
+                    <div class="legend-tile" title="${item.name}: ${item.val} (${pct}%)">
+                        <div class="legend-tile-name">
+                            <span style="width:9px;height:9px;border-radius:50%;background:${item.color};flex-shrink:0;"></span>
+                            <span class="text-truncate">${item.name}</span>
+                        </div>
+                        <div class="legend-tile-val">${item.val} <span class="text-muted fw-normal">(${pct}%)</span></div>
+                    </div>
+                `);
+            });
+        }
+
+        if (donutChartInstance) donutChartInstance.destroy();
+        const ctx = canvas.getContext('2d');
+
+        donutChartInstance = new Chart(ctx, {
+            type: chartType,
+            data: {
+                labels: finalItems.length ? finalItems.map(i => i.name) : ['Нет данных'],
+                datasets: [{
+                    data: finalItems.length ? finalItems.map(i => i.val) : [1],
+                    backgroundColor: finalItems.length ? finalItems.map(i => i.color) : ['#e2e8f0'],
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    borderRadius: chartType === 'bar' ? 5 : 0
+                }]
+            },
+            options: {
+                indexAxis: chartType === 'bar' ? 'y' : 'x',
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: chartType === 'doughnut' ? '68%' : undefined,
+                plugins: {
+                    legend: { display: false },
+                    centerText: { title: centerTitle, value: String(centerValue) }
+                },
+                scales: chartType === 'bar' ? {
+                    x: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                } : {}
+            }
+        });
+    }
+
+    // 3. ГРАФИК ДИНАМИКИ ПО МЕСЯЦАМ
     function drawMonthlyOrgChart() {
+        const canvas = document.getElementById('monthlyOrgChart');
+        if (!canvas) return;
         if (monthlyChartInstance) monthlyChartInstance.destroy();
-        const ctx = document.getElementById('monthlyOrgChart').getContext('2d');
 
-        const labels = monthlyOrgData.map(m => m.month_name);
-        const posData = monthlyOrgData.map(m => m.pos_sum);
-        const negData = monthlyOrgData.map(m => m.neg_sum);
-        const netData = monthlyOrgData.map(m => m.net_sum);
+        const defaultMonths = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+        const labels = monthlyOrgData.length ? monthlyOrgData.map(m => m.short_name || m.month_name) : defaultMonths;
+        const posData = monthlyOrgData.length ? monthlyOrgData.map(m => Number(m.pos_sum) || 0) : new Array(12).fill(0);
+        const negData = monthlyOrgData.length ? monthlyOrgData.map(m => Number(m.neg_sum) || 0) : new Array(12).fill(0);
+        const netData = monthlyOrgData.length ? monthlyOrgData.map(m => Number(m.net_sum) || 0) : new Array(12).fill(0);
 
+        const ctx = canvas.getContext('2d');
         monthlyChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -448,12 +941,12 @@
                 datasets: [
                     {
                         type: 'line',
-                        label: 'Баланс (Итог)',
+                        label: 'Чистый баланс (±)',
                         data: netData,
-                        borderColor: '#3b82f6',
-                        backgroundColor: '#3b82f6',
-                        borderWidth: 2,
-                        tension: 0.3,
+                        borderColor: '#2563eb',
+                        backgroundColor: '#2563eb',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         pointRadius: 4
                     },
                     {
@@ -461,14 +954,14 @@
                         label: 'Ввод (Найм +)',
                         data: posData,
                         backgroundColor: '#10b981',
-                        borderRadius: 4
+                        borderRadius: 5
                     },
                     {
                         type: 'bar',
                         label: 'Вывод (Сокращение -)',
                         data: negData,
-                        backgroundColor: '#ef4444',
-                        borderRadius: 4
+                        backgroundColor: '#f43f5e',
+                        borderRadius: 5
                     }
                 ]
             },
@@ -476,120 +969,131 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { position: 'top' } },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } }
+                },
                 scales: {
-                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
                     x: { grid: { display: false } }
                 }
             }
         });
     }
 
-    function drawBarChart() {
-        const groupBy = $('#chartGroupBy').val();
-        const chartType = $('#mainChartType').val();
-        const selectedMetrics = $('.main-metric-cb:checked').map(function() { return this.value; }).get();
+    // 4. ГРАФИК ТОП-10 ЦЕХОВ ПО ОХВАТУ ШТАТА НАСТАВНИКАМИ (%)
+    function drawCoverageChart() {
+        const canvas = document.getElementById('coverageChart');
+        if (!canvas) return;
+        if (coverageChartInstance) coverageChartInstance.destroy();
 
-        const aggregated = {};
-        rawData.forEach(row => {
-            const key = row[groupBy] || 'Неизвестно';
-            if (!aggregated[key]) {
-                aggregated[key] = { active: 0, emp: 0, dismissed: 0, org_pos: 0, org: 0 };
-            }
-            aggregated[key].active += row.active_mentors;
-            aggregated[key].emp += row.employees_count;
-            aggregated[key].dismissed += row.dismissed_mentors;
-            aggregated[key].org_pos += row.org_events_pos;
-            aggregated[key].org += row.org_events_sum;
-        });
+        const topShops = [...rawData]
+            .filter(r => Number(r.coverage_pct) > 0)
+            .sort((a, b) => Number(b.coverage_pct) - Number(a.coverage_pct))
+            .slice(0, 10);
 
-        const labels = Object.keys(aggregated);
+        const labels = topShops.map(r => r.shop_name.length > 22 ? r.shop_name.slice(0, 20) + '…' : r.shop_name);
+        const coverageData = topShops.map(r => Number(r.coverage_pct) || 0);
 
-        const datasets = selectedMetrics.map(metric => {
-            return {
-                label: metricConfig[metric].label,
-                data: labels.map(l => Math.round(aggregated[l][metric] * 10) / 10),
-                backgroundColor: metricConfig[metric].color,
-                borderColor: metricConfig[metric].color,
-                borderWidth: chartType === 'line' ? 2 : 0,
-                fill: false,
-                tension: 0.3,
-                borderRadius: chartType === 'bar' ? 4 : 0
-            };
-        });
-
-        if (barChartInstance) barChartInstance.destroy();
-
-        const isHorizontal = (chartType === 'bar' && groupBy === 'shop_name');
-        const chartContainer = document.getElementById('mainChartContainer');
-
-        if (isHorizontal) {
-            chartContainer.style.height = Math.max(350, labels.length * 35) + 'px';
-        } else {
-            chartContainer.style.height = '350px';
-        }
-
-        const ctx = document.getElementById('mainBarChart').getContext('2d');
-        barChartInstance = new Chart(ctx, {
-            type: chartType,
-            data: { labels: labels, datasets: datasets },
+        const ctx = canvas.getContext('2d');
+        coverageChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Охват наставниками (%)',
+                    data: coverageData,
+                    backgroundColor: '#10b981',
+                    borderRadius: 5,
+                    maxBarThickness: 22
+                }]
+            },
             options: {
-                indexAxis: isHorizontal ? 'y' : 'x',
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { position: 'top' } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ` Охват: ${ctx.raw}%`
+                        }
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
-                    x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 0 } }
+                    x: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } },
+                    y: { grid: { display: false }, ticks: { font: { size: 11 } } }
                 }
             }
         });
     }
 
-    function drawDonutChart() {
-        const chartType = $('#donutChartType').val();
-        const metric = $('#donutChartMetric').val();
-        const dataKey = metricConfig[metric].key;
+    // 5. ФИЛЬТРАЦИЯ И ПЕРЕСЧЕТ ИТОГОВ ПОМЕСЯЧНОЙ МАТРИЦЫ ОРГМЕРОПРИЯТИЙ
+    function applyMatrixFilters() {
+        const searchShop = ($('#matrixSearchShop').val() || '').toLowerCase().trim();
+        const filterDiv = $('#matrixFilterDiv').val();
+        const filterMonth = $('#matrixFilterMonth').val();
+        const filterType = $('#matrixFilterType').val();
 
-        const divisionData = {};
-        rawData.forEach(row => {
-            const div = row.division_name || 'Неизвестно';
-            if (!divisionData[div]) divisionData[div] = 0;
-            divisionData[div] += row[dataKey];
-        });
+        // Подсветка выбранного месяца
+        $('.month-col').removeClass('highlight-month-col');
+        if (filterMonth !== 'all') {
+            $(`.month-col-${filterMonth}`).addClass('highlight-month-col');
+        }
 
-        const sortedDivisions = Object.entries(divisionData).filter(([_, val]) => val > 0).sort((a, b) => b[1] - a[1]);
-        const labels = sortedDivisions.map(item => item[0]);
-        const values = sortedDivisions.map(item => Math.round(item[1] * 10) / 10);
+        const monthTotals = {};
+        for (let m = 1; m <= 12; m++) monthTotals[m] = 0;
+        let totalPos = 0, totalNeg = 0, totalNet = 0;
 
-        if (donutChartInstance) donutChartInstance.destroy();
+        $('.matrix-row').each(function() {
+            const $row = $(this);
+            const shop = String($row.data('shop') || '');
+            const div = String($row.data('div') || '');
+            const pos = parseFloat($row.data('pos')) || 0;
+            const neg = parseFloat($row.data('neg')) || 0;
+            const net = parseFloat($row.data('net')) || 0;
 
-        const ctx = document.getElementById('donutChart').getContext('2d');
-        donutChartInstance = new Chart(ctx, {
-            type: chartType,
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderWidth: 2,
-                    borderColor: '#fff',
-                    hoverOffset: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: chartType === 'doughnut' ? '65%' : '0%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 12, usePointStyle: true, font: {size: 11}, padding: 15 }
-                    }
+            let visible = true;
+
+            if (searchShop && !shop.includes(searchShop)) visible = false;
+            if (filterDiv && div !== filterDiv) visible = false;
+
+            if (filterMonth !== 'all') {
+                const mVal = parseFloat($row.data(`m${filterMonth}`)) || 0;
+                if (mVal === 0) visible = false;
+            }
+
+            if (filterType === 'nonzero' && pos === 0 && neg === 0 && net === 0) visible = false;
+            else if (filterType === 'pos' && pos <= 0) visible = false;
+            else if (filterType === 'neg' && neg >= 0) visible = false;
+            else if (filterType === 'net_pos' && net <= 0) visible = false;
+            else if (filterType === 'net_neg' && net >= 0) visible = false;
+
+            $row.toggle(visible);
+
+            if (visible) {
+                for (let m = 1; m <= 12; m++) {
+                    monthTotals[m] += parseFloat($row.data(`m${m}`)) || 0;
                 }
+                totalPos += pos;
+                totalNeg += neg;
+                totalNet += net;
             }
         });
+
+        // Обновляем строку ИТОГО внизу матрицы
+        for (let m = 1; m <= 12; m++) {
+            const val = Math.round(monthTotals[m] * 10) / 10;
+            const $cell = $(`#ft_m${m}`);
+            $cell.text(val > 0 ? `+${val}` : (val < 0 ? val : '0'));
+            $cell.attr('class', `month-col month-col-${m} ` + (val > 0 ? 'text-primary' : (val < 0 ? 'text-danger' : 'text-muted')));
+            if (filterMonth === String(m)) $cell.addClass('highlight-month-col');
+        }
+
+        $('#ft_pos').text(`+${Math.round(totalPos * 10) / 10}`);
+        $('#ft_neg').text(Math.round(totalNeg * 10) / 10);
+        const rNet = Math.round(totalNet * 10) / 10;
+        $('#ft_net').text(rNet > 0 ? `+${rNet}` : rNet)
+                    .attr('class', rNet > 0 ? 'text-primary fw-bold' : (rNet < 0 ? 'text-danger fw-bold' : 'text-muted'));
     }
 
     $(document).ready(function() {
@@ -602,12 +1106,31 @@
         });
 
         $('.auto-submit').on('change', function() { $('#filterForm').submit(); });
-        $('#chartGroupBy, #mainChartType, .main-metric-cb').on('change', function() { drawBarChart(); });
-        $('#donutChartType, #donutChartMetric').on('change', function() { drawDonutChart(); });
 
-        drawMonthlyOrgChart();
+        $('.main-metric-cb').on('change', function() {
+            $(this).closest('.metric-pill').toggleClass('active', this.checked);
+            drawBarChart();
+        });
+
+        $('#chartGroupBy, #mainChartType, #chartLimit').on('change', drawBarChart);
+        $('#donutMode, #donutChartType, #donutChartMetric, #donutGroupBy').on('change', drawDonutChart);
+
+        // Слушатели фильтров помесячной матрицы
+        $('#matrixSearchShop').on('input', applyMatrixFilters);
+        $('#matrixFilterDiv, #matrixFilterMonth, #matrixFilterType').on('change', applyMatrixFilters);
+        $('#resetMatrixFilters').on('click', function() {
+            $('#matrixSearchShop').val('');
+            $('#matrixFilterDiv').val('');
+            $('#matrixFilterMonth').val('all');
+            $('#matrixFilterType').val('all');
+            applyMatrixFilters();
+        });
+
         drawBarChart();
         drawDonutChart();
+        drawMonthlyOrgChart();
+        drawCoverageChart();
+        applyMatrixFilters();
     });
     {% endif %}
 </script>

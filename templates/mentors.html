@@ -27,8 +27,8 @@
 
         .big-number { font-size: 2.5rem; font-weight: 700; line-height: 1; margin-top: 10px; }
 
-        .top-filters .form-select { border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
-        .top-filters label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;}
+        .top-filters .form-select { border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; }
+        .top-filters label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;}
 
         .chart-controls .form-select { font-size: 0.8rem; padding: 0.25rem 2rem 0.25rem 0.75rem; }
         .chart-container-scroll { overflow-y: auto; overflow-x: hidden; width: 100%; }
@@ -73,35 +73,50 @@
         </button>
     </div>
 
+    <!-- ФИЛЬТРЫ (добавлены Год и Месяц оргмероприятий) -->
     <div class="dash-card p-3 mb-4">
-        <form id="filterForm" method="get" action="/mentors" class="row g-3 top-filters align-items-end">
-            <div class="col-md-3">
+        <form id="filterForm" method="get" action="/mentors" class="row g-2 top-filters align-items-end">
+            <div class="col-md-2">
                 <label>Площадка</label>
                 <select name="site" class="form-select auto-submit">
                     <option value="">Все площадки</option>
                     {% for s in sites %}<option value="{{ s.name }}" {% if s.name == site_filter %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Передел</label>
                 <select name="division" class="form-select auto-submit">
                     <option value="">Все переделы</option>
                     {% for d in divisions %}<option value="{{ d.name }}" {% if d.name == division_filter %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Цех</label>
                 <select name="shop" class="form-select auto-submit">
                     <option value="">Все цеха</option>
                     {% for sh in shops %}<option value="{{ sh.name }}" {% if sh.name == shop_filter %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}
                 </select>
             </div>
-            <div class="col-md-3 d-flex justify-content-between align-items-center">
+            <div class="col-md-2">
+                <label>Год (орг. мер.)</label>
+                <select name="year" class="form-select auto-submit">
+                    <option value="">Все годы</option>
+                    {% for y in years %}<option value="{{ y }}" {% if y|string == year_filter|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>Месяц (орг. мер.)</label>
+                <select name="month" class="form-select auto-submit">
+                    <option value="">Все месяцы</option>
+                    {% for m in months_list %}<option value="{{ m.num }}" {% if m.num|string == month_filter|string %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex justify-content-between align-items-center">
                 <div class="form-check mb-0">
                     <input class="form-check-input auto-submit" type="checkbox" name="show_zero" id="showZeroCheck" {% if show_zero %}checked{% endif %}>
                     <label class="form-check-label text-muted text-lowercase" for="showZeroCheck" style="margin-bottom: 0;">Пустые цеха</label>
                 </div>
-                <a href="/mentors" class="btn btn-light btn-sm rounded-pill px-3 text-muted border">Сбросить</a>
+                <a href="/mentors" class="btn btn-light btn-sm rounded-pill px-2 text-muted border">Сброс</a>
             </div>
         </form>
     </div>
@@ -109,7 +124,9 @@
     {% set total_active = data | sum(attribute='active_mentors') %}
     {% set total_dismissed = data | sum(attribute='dismissed_mentors') %}
     {% set total_emp = data | sum(attribute='employees_count') %}
-    {% set total_org = data | sum(attribute='org_events_sum') %}
+    {% set total_org_net = data | sum(attribute='org_events_sum') %}
+    {% set total_org_pos = data | sum(attribute='org_events_pos') %}
+    {% set total_org_neg = data | sum(attribute='org_events_neg') %}
 
     <div class="row g-4 mb-4">
         <div class="col-md-4">
@@ -140,8 +157,71 @@
                     <h6 class="mb-0 opacity-75">План штата (Орг. мер.)</h6>
                     <i class="bi bi-graph-up-arrow fs-5 opacity-50"></i>
                 </div>
-                <div class="big-number">{% if total_org > 0 %}+{% endif %}{{ total_org | int }}</div>
-                <div class="small opacity-75 mt-2">Планируемое изменение численности</div>
+                <div class="big-number">{% if total_org_net > 0 %}+{% endif %}{{ total_org_net | round(1) }}</div>
+                <div class="small mt-2 d-flex gap-3 fw-semibold">
+                    <span class="badge bg-white text-success px-2 py-1">Ввод (найм): +{{ total_org_pos | round(1) }}</span>
+                    <span class="badge bg-white text-danger px-2 py-1">Вывод (сокр.): {{ total_org_neg | round(1) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- НОВЫЙ БЛОК: ДИНАМИКА ОРГМЕРОПРИЯТИЙ ПО МЕСЯЦАМ -->
+    <div class="dash-card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h6 class="text-dark fw-bold mb-0"><i class="bi bi-calendar3 me-2 text-primary"></i>Оргмероприятия по месяцам</h6>
+                <small class="text-muted">Динамика набора (+), сокращений (-) и итогового баланса численности в разрезе месяцев</small>
+            </div>
+            <button class="btn btn-sm btn-light border text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#monthlyTableCollapse">
+                Таблица по месяцам <i class="bi bi-chevron-down ms-1"></i>
+            </button>
+        </div>
+
+        <div style="position: relative; height: 260px; width: 100%;">
+            <canvas id="monthlyOrgChart"></canvas>
+        </div>
+
+        <div class="collapse mt-3" id="monthlyTableCollapse">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered text-center align-middle mb-0" style="font-size: 0.82rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start">Показатель</th>
+                            {% for m in monthly_org_data %}
+                                <th>{{ m.month_name[:3] }}</th>
+                            {% endfor %}
+                            <th class="fw-bold">Итого</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="text-start fw-semibold text-success">Ввод (найм, +)</td>
+                            {% for m in monthly_org_data %}
+                                <td class="text-success">{% if m.pos_sum > 0 %}+{{ m.pos_sum }}{% else %}-{% endif %}</td>
+                            {% endfor %}
+                            <td class="fw-bold text-success">+{{ total_org_pos | round(1) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-start fw-semibold text-danger">Вывод (сокращение, -)</td>
+                            {% for m in monthly_org_data %}
+                                <td class="text-danger">{% if m.neg_sum < 0 %}{{ m.neg_sum }}{% else %}-{% endif %}</td>
+                            {% endfor %}
+                            <td class="fw-bold text-danger">{{ total_org_neg | round(1) }}</td>
+                        </tr>
+                        <tr class="table-light fw-bold">
+                            <td class="text-start">Баланс (Итог)</td>
+                            {% for m in monthly_org_data %}
+                                <td class="{% if m.net_sum > 0 %}text-primary{% elif m.net_sum < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    {% if m.net_sum > 0 %}+{{ m.net_sum }}{% elif m.net_sum < 0 %}{{ m.net_sum }}{% else %}0{% endif %}
+                                </td>
+                            {% endfor %}
+                            <td class="{% if total_org_net > 0 %}text-primary{% elif total_org_net < 0 %}text-danger{% endif %}">
+                                {% if total_org_net > 0 %}+{% endif %}{{ total_org_net | round(1) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -150,7 +230,7 @@
         <div class="col-xl-8">
             <div class="dash-card h-100 p-4">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="text-dark fw-bold mb-0">Анализ показателей</h6>
+                    <h6 class="text-dark fw-bold mb-0">Анализ показателей по подразделениям</h6>
                     <div class="d-flex gap-2 chart-controls">
                         <select id="mainChartType" class="form-select border-0 bg-light text-muted fw-semibold">
                             <option value="bar" selected>Гистограмма</option>
@@ -178,8 +258,12 @@
                         <label class="form-check-label small text-danger fw-semibold" for="cbMainDismissed">Уволенные</label>
                     </div>
                     <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input main-metric-cb" type="checkbox" value="org_pos" id="cbMainOrgPos">
+                        <label class="form-check-label small text-info fw-semibold" for="cbMainOrgPos">Орг. мер. (Найм +)</label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
                         <input class="form-check-input main-metric-cb" type="checkbox" value="org" id="cbMainOrg">
-                        <label class="form-check-label small text-warning fw-semibold" for="cbMainOrg">План (орг. мер.)</label>
+                        <label class="form-check-label small text-warning fw-semibold" for="cbMainOrg">Орг. мер. (Баланс ±)</label>
                     </div>
                 </div>
 
@@ -205,7 +289,7 @@
                     <option value="active" selected>Показать: Активные наставники</option>
                     <option value="emp">Показать: Штат</option>
                     <option value="dismissed">Показать: Уволенные</option>
-                    <option value="org">Показать: План (орг. мер.)</option>
+                    <option value="org_pos">Показать: План найма (+)</option>
                 </select>
 
                 <div style="position: relative; height: 350px; width: 100%;">
@@ -215,43 +299,114 @@
         </div>
     </div>
 
-    <div class="dash-card p-4">
-        <h6 class="text-dark fw-bold mb-4">Детализация по цехам</h6>
-        <div class="table-responsive">
-            <table id="mentorsTable" class="table table-hover align-middle mb-0 w-100" style="font-size: 0.9rem;">
-                <thead style="border-bottom: 2px solid #e2e8f0;">
-                    <tr>
-                        <th class="text-muted fw-semibold border-0">Площадка</th>
-                        <th class="text-muted fw-semibold border-0">Передел</th>
-                        <th class="text-muted fw-semibold border-0">Цех</th>
-                        <th class="text-muted fw-semibold border-0 text-center">Спис. числ.</th>
-                        <th class="text-muted fw-semibold border-0 text-center">План (ув./ум. численности персонала )</th>
-                        <th class="text-muted fw-semibold border-0 text-center">Активные наставники</th>
-                        <th class="text-muted fw-semibold border-0 text-center">Уволенные наставники</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in data %}
-                    <tr>
-                        <td class="fw-semibold text-dark border-light">{{ row.site_name }}</td>
-                        <td class="border-light">{{ row.division_name }}</td>
-                        <td class="border-light">{{ row.shop_name }}</td>
-                        <td class="text-center fw-bold border-light">{{ row.employees_count }}</td>
-                        <td class="text-center border-light">
-                            {% if row.org_events_sum > 0 %}<span class="text-primary fw-bold">+{{ row.org_events_sum|int }}</span>
-                            {% elif row.org_events_sum < 0 %}<span class="text-danger fw-bold">{{ row.org_events_sum|int }}</span>
-                            {% else %}<span class="text-muted">-</span>{% endif %}
-                        </td>
-                        <td class="text-center border-light">
-                            <span class="badge {% if row.active_mentors > 0 %}bg-success{% else %}bg-light text-dark{% endif %} rounded-pill px-3 py-2">{{ row.active_mentors }}</span>
-                        </td>
-                        <td class="text-center border-light">
-                            <span class="badge {% if row.dismissed_mentors > 0 %}bg-danger{% else %}bg-light text-muted{% endif %} rounded-pill px-3 py-2">{{ row.dismissed_mentors }}</span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="dash-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h6 class="text-dark fw-bold mb-0">Детализация по цехам (из БД)</h6>
+            <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3" id="tableTabs" role="tablist" style="font-size: 0.85rem;">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active py-1 px-3" id="general-tab" data-bs-toggle="pill" data-bs-target="#generalTablePane" type="button" role="tab">
+                        Общие показатели
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link py-1 px-3" id="monthly-tab" data-bs-toggle="pill" data-bs-target="#monthlyMatrixPane" type="button" role="tab">
+                        Оргмероприятия по месяцам
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="tab-content">
+            <!-- ВКЛАДКА 1: ОБЩИЕ ПОКАЗАТЕЛИ -->
+            <div class="tab-pane fade show active" id="generalTablePane" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="mentorsTable" class="table table-hover align-middle mb-0 w-100" style="font-size: 0.9rem;">
+                        <thead style="border-bottom: 2px solid #e2e8f0;">
+                            <tr>
+                                <th class="text-muted fw-semibold border-0">Площадка</th>
+                                <th class="text-muted fw-semibold border-0">Передел</th>
+                                <th class="text-muted fw-semibold border-0">Цех</th>
+                                <th class="text-muted fw-semibold border-0 text-center">Спис. числ.</th>
+                                <th class="text-muted fw-semibold border-0 text-center">Орг. мер. (Баланс / +Ввод / -Вывод)</th>
+                                <th class="text-muted fw-semibold border-0 text-center">Активные наставники</th>
+                                <th class="text-muted fw-semibold border-0 text-center">Уволенные наставники</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                            <tr>
+                                <td class="fw-semibold text-dark border-light">{{ row.site_name }}</td>
+                                <td class="border-light">{{ row.division_name }}</td>
+                                <td class="border-light">{{ row.shop_name }}</td>
+                                <td class="text-center fw-bold border-light">{{ row.employees_count }}</td>
+                                <td class="text-center border-light" data-order="{{ row.org_events_sum }}">
+                                    {% if row.org_events_sum != 0 or row.org_events_pos != 0 or row.org_events_neg != 0 %}
+                                        <div>
+                                            {% if row.org_events_sum > 0 %}
+                                                <span class="text-primary fw-bold">+{{ row.org_events_sum }}</span>
+                                            {% elif row.org_events_sum < 0 %}
+                                                <span class="text-danger fw-bold">{{ row.org_events_sum }}</span>
+                                            {% else %}
+                                                <span class="text-secondary fw-bold">0</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="small text-muted" style="font-size: 0.75rem;">
+                                            <span class="text-success" title="Ввод новых ШЕ">+{{ row.org_events_pos }}</span> /
+                                            <span class="text-danger" title="Сокращение ШЕ">{{ row.org_events_neg }}</span>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center border-light">
+                                    <span class="badge {% if row.active_mentors > 0 %}bg-success{% else %}bg-light text-dark{% endif %} rounded-pill px-3 py-2">{{ row.active_mentors }}</span>
+                                </td>
+                                <td class="text-center border-light">
+                                    <span class="badge {% if row.dismissed_mentors > 0 %}bg-danger{% else %}bg-light text-muted{% endif %} rounded-pill px-3 py-2">{{ row.dismissed_mentors }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ВКЛАДКА 2: ПОМЕСЯЧНЫЕ ОРГМЕРОПРИЯТИЯ ПО ЦЕХАМ ИЗ БД -->
+            <div class="tab-pane fade" id="monthlyMatrixPane" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover align-middle mb-0 text-center" style="font-size: 0.82rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-start">Цех</th>
+                                {% for m in months_list %}
+                                    <th>{{ m.short_name }}</th>
+                                {% endfor %}
+                                <th>+Ввод</th>
+                                <th>-Вывод</th>
+                                <th>Баланс</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                            <tr>
+                                <td class="text-start fw-semibold">{{ row.shop_name }}</td>
+                                {% for m in months_list %}
+                                    {% set val = row.months.get(m.num, 0) %}
+                                    <td class="{% if val > 0 %}text-primary fw-bold{% elif val < 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                        {% if val > 0 %}+{{ val }}{% elif val < 0 %}{{ val }}{% else %}-{% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="text-success fw-semibold">+{{ row.org_events_pos }}</td>
+                                <td class="text-danger fw-semibold">{{ row.org_events_neg }}</td>
+                                <td class="fw-bold {% if row.org_events_sum > 0 %}text-primary{% elif row.org_events_sum < 0 %}text-danger{% endif %}">
+                                    {% if row.org_events_sum > 0 %}+{% endif %}{{ row.org_events_sum }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -261,8 +416,11 @@
 <script>
     {% if db_exists %}
     const rawData = {{ chart_data_json | safe }} || [];
+    const monthlyOrgData = {{ monthly_org_json | safe }} || [];
+
     let barChartInstance = null;
     let donutChartInstance = null;
+    let monthlyChartInstance = null;
 
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444', '#64748b'];
 
@@ -270,8 +428,62 @@
         active: { key: 'active_mentors', label: 'Активные наставники', color: '#10b981' },
         emp: { key: 'employees_count', label: 'Штат', color: '#3b82f6' },
         dismissed: { key: 'dismissed_mentors', label: 'Уволенные', color: '#ef4444' },
-        org: { key: 'org_events_sum', label: 'План (орг. мер.)', color: '#f59e0b' }
+        org_pos: { key: 'org_events_pos', label: 'Орг. мер. (Найм +)', color: '#06b6d4' },
+        org: { key: 'org_events_sum', label: 'Орг. мер. (Баланс ±)', color: '#f59e0b' }
     };
+
+    function drawMonthlyOrgChart() {
+        if (monthlyChartInstance) monthlyChartInstance.destroy();
+        const ctx = document.getElementById('monthlyOrgChart').getContext('2d');
+
+        const labels = monthlyOrgData.map(m => m.month_name);
+        const posData = monthlyOrgData.map(m => m.pos_sum);
+        const negData = monthlyOrgData.map(m => m.neg_sum);
+        const netData = monthlyOrgData.map(m => m.net_sum);
+
+        monthlyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Баланс (Итог)',
+                        data: netData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#3b82f6',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 4
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Ввод (Найм +)',
+                        data: posData,
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Вывод (Сокращение -)',
+                        data: negData,
+                        backgroundColor: '#ef4444',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
 
     function drawBarChart() {
         const groupBy = $('#chartGroupBy').val();
@@ -282,11 +494,12 @@
         rawData.forEach(row => {
             const key = row[groupBy] || 'Неизвестно';
             if (!aggregated[key]) {
-                aggregated[key] = { active: 0, emp: 0, dismissed: 0, org: 0 };
+                aggregated[key] = { active: 0, emp: 0, dismissed: 0, org_pos: 0, org: 0 };
             }
             aggregated[key].active += row.active_mentors;
             aggregated[key].emp += row.employees_count;
             aggregated[key].dismissed += row.dismissed_mentors;
+            aggregated[key].org_pos += row.org_events_pos;
             aggregated[key].org += row.org_events_sum;
         });
 
@@ -295,11 +508,11 @@
         const datasets = selectedMetrics.map(metric => {
             return {
                 label: metricConfig[metric].label,
-                data: labels.map(l => aggregated[l][metric]),
+                data: labels.map(l => Math.round(aggregated[l][metric] * 10) / 10),
                 backgroundColor: metricConfig[metric].color,
                 borderColor: metricConfig[metric].color,
                 borderWidth: chartType === 'line' ? 2 : 0,
-                fill: chartType === 'line' ? false : true,
+                fill: false,
                 tension: 0.3,
                 borderRadius: chartType === 'bar' ? 4 : 0
             };
@@ -346,9 +559,9 @@
             divisionData[div] += row[dataKey];
         });
 
-        const sortedDivisions = Object.entries(divisionData).filter(([_, val]) => val !== 0).sort((a, b) => b[1] - a[1]);
+        const sortedDivisions = Object.entries(divisionData).filter(([_, val]) => val > 0).sort((a, b) => b[1] - a[1]);
         const labels = sortedDivisions.map(item => item[0]);
-        const values = sortedDivisions.map(item => item[1]);
+        const values = sortedDivisions.map(item => Math.round(item[1] * 10) / 10);
 
         if (donutChartInstance) donutChartInstance.destroy();
 
@@ -371,13 +584,8 @@
                 cutout: chartType === 'doughnut' ? '65%' : '0%',
                 plugins: {
                     legend: {
-                        position: 'bottom', // ПЕРЕНЕСЛИ ЛЕГЕНДУ ВНИЗ
-                        labels: {
-                            boxWidth: 12,
-                            usePointStyle: true,
-                            font: {size: 11},
-                            padding: 15 // Добавили немного отступов между элементами
-                        }
+                        position: 'bottom',
+                        labels: { boxWidth: 12, usePointStyle: true, font: {size: 11}, padding: 15 }
                     }
                 }
             }
@@ -397,6 +605,7 @@
         $('#chartGroupBy, #mainChartType, .main-metric-cb').on('change', function() { drawBarChart(); });
         $('#donutChartType, #donutChartMetric').on('change', function() { drawDonutChart(); });
 
+        drawMonthlyOrgChart();
         drawBarChart();
         drawDonutChart();
     });
